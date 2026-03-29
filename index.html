@@ -1,0 +1,2708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!--
+    Original concept and implementation by Garry Parzych.
+    Released under the MIT License. See LICENSE for details.
+  -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Helldivers Build Randomizer</title>
+  <style>
+    :root {
+      --bg:       #0c0c0e;
+      --surface:  #141416;
+      --surface2: #1c1c20;
+      --border:   #2c2c34;
+      --accent:   #f5c518;
+      --accent2:  #ff6b2b;
+      --red:      #ef4444;
+      --blue:     #60a5fa;
+      --green:    #4ade80;
+      --purple:   #a78bfa;
+      --text:     #d4d4d8;
+      --muted:    #71717a;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      padding: 24px 16px 48px;
+    }
+
+    /* ── Header ────────────────────────────── */
+    header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    header h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      color: var(--accent);
+      text-shadow: 0 0 24px rgba(245,197,24,.35);
+    }
+    header p {
+      color: var(--muted);
+      margin-top: 4px;
+      font-size: .9rem;
+    }
+
+    /* ── Panel ──────────────────────────────── */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 24px;
+      max-width: 860px;
+      margin: 0 auto 20px;
+    }
+    .panel-title {
+      font-size: .7rem;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    /* ── Pills ──────────────────────────────── */
+    .pill-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .pill {
+      padding: 6px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      font-size: .8rem;
+      cursor: pointer;
+      transition: all .15s;
+      user-select: none;
+    }
+    .pill:hover { border-color: var(--accent); color: var(--accent); }
+    .pill.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #000;
+      font-weight: 700;
+    }
+    .pill.faction-active {
+      background: var(--accent2);
+      border-color: var(--accent2);
+      color: #fff;
+      font-weight: 700;
+    }
+
+    /* ── Options row ────────────────────────── */
+    .options-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 24px;
+      align-items: flex-start;
+    }
+    .option-group { flex: 1; min-width: 180px; }
+    .option-label {
+      font-size: .7rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .radio-group { display: flex; flex-direction: column; gap: 6px; }
+    .radio-group label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: .85rem;
+      cursor: pointer;
+    }
+    .radio-group input[type=radio] { accent-color: var(--accent); }
+
+    /* ── Randomize button ───────────────────── */
+    .btn-wrap { text-align: center; margin: 8px 0 24px; }
+    .btn-randomize {
+      background: var(--accent);
+      color: #000;
+      font-weight: 800;
+      font-size: 1rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      border: none;
+      border-radius: 8px;
+      padding: 14px 40px;
+      cursor: pointer;
+      transition: all .15s;
+      box-shadow: 0 0 20px rgba(245,197,24,.3);
+    }
+    .btn-randomize:hover {
+      background: #ffd93d;
+      box-shadow: 0 0 32px rgba(245,197,24,.5);
+      transform: translateY(-1px);
+    }
+    .btn-randomize:active { transform: translateY(0); }
+
+    /* ── Result cards ───────────────────────── */
+    .results {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 14px;
+      max-width: 860px;
+      margin: 0 auto;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: border-color .2s;
+      position: relative;
+    }
+    .card.locked { border-color: var(--accent); }
+    .card.locked::after {
+      content: '🔒';
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: .85rem;
+    }
+    .card-slot {
+      font-size: .65rem;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .card-name {
+      font-size: .95rem;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.25;
+    }
+    .card-desc {
+      font-size: .78rem;
+      color: var(--muted);
+      line-height: 1.4;
+      flex: 1;
+    }
+    .card-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 2px;
+    }
+    .tag {
+      font-size: .65rem;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 4px;
+    }
+    .tag-chaff    { background: rgba(126, 211, 33, .16); color: #a3e635; }
+    .tag-at       { background: rgba(239,68,68,.16); color: #f87171; }
+    .tag-laser    { background: rgba(99,102,241,.16); color: #a5b4fc; }
+    .tag-fire     { background: rgba(249,115,22,.18); color: #fb923c; }
+    .tag-close    { background: rgba(245,158,11,.16); color: #fbbf24; }
+    .tag-explosive{ background: rgba(234,179,8,.18); color: #fde047; }
+    .tag-support  { background: rgba(148,163,184,.16); color: #cbd5e1; }
+    .tag-denial   { background: rgba(14,165,233,.16); color: #7dd3fc; }
+    .tag-ballistic{ background: rgba(156,163,175,.16); color: #e5e7eb; }
+    .tag-plasma   { background: rgba(217,70,239,.16); color: #f0abfc; }
+    .tag-gas      { background: rgba(132,204,22,.16); color: #bef264; }
+    .tag-melee    { background: rgba(251,191,36,.16); color: #fcd34d; }
+    .tag-arc      { background: rgba(6,182,212,.16); color: #67e8f9; }
+    .tag-stealth  { background: rgba(100,116,139,.18); color: #cbd5e1; }
+    .tag-mobility { background: rgba(16,185,129,.16); color: #6ee7b7; }
+    .tag-defense  { background: rgba(168,85,247,.16); color: #d8b4fe; }
+
+    .card-type {
+      font-size: .68rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 4px;
+      align-self: flex-start;
+    }
+    .type-support  { background: rgba(245,197,24,.15); color: var(--accent); }
+    .type-backpack { background: rgba(74,222,128,.12); color: var(--green); }
+    .type-orbital  { background: rgba(96,165,250,.12); color: var(--blue); }
+    .type-eagle    { background: rgba(239,68,68,.12);  color: var(--red); }
+    .type-sentry    { background: rgba(167,139,250,.12); color: var(--purple); }
+    .type-primary   { background: rgba(245,197,24,.12);  color: var(--accent); }
+    .type-secondary { background: rgba(255,107,43,.12);  color: var(--accent2); }
+    .type-grenade   { background: rgba(239,68,68,.12);   color: var(--red); }
+    .type-armor     { background: rgba(96,165,250,.12);  color: var(--blue); }
+    .type-vehicle   { background: rgba(255,107,43,.12); color: var(--accent2); }
+    .type-booster   { background: rgba(167,139,250,.12); color: var(--purple); }
+
+    .tag-closer { background: rgba(74,222,128,.15); color: var(--green); }
+
+    .card-meta {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-size: .75rem;
+      color: var(--muted);
+    }
+
+    .section-header {
+      font-size: .7rem;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      max-width: 860px;
+      margin: 24px auto 10px;
+      padding: 16px 4px 0;
+      border-top: 1px solid var(--border);
+    }
+
+    .card-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .btn-reroll, .btn-lock {
+      flex: 1;
+      padding: 6px 0;
+      font-size: .75rem;
+      font-weight: 600;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .btn-reroll:hover { border-color: var(--accent2); color: var(--accent2); }
+    .btn-lock:hover   { border-color: var(--accent);  color: var(--accent); }
+    .btn-lock.locked  { border-color: var(--accent);  color: var(--accent); background: rgba(245,197,24,.08); }
+
+    /* ── Warning ────────────────────────────── */
+    .warning {
+      background: rgba(239,68,68,.1);
+      border: 1px solid rgba(239,68,68,.3);
+      color: #fca5a5;
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: .82rem;
+      max-width: 860px;
+      margin: 0 auto 16px;
+      display: none;
+    }
+    .warning.show { display: block; }
+
+    /* ── Empty state ────────────────────────── */
+    .empty-state {
+      text-align: center;
+      color: var(--muted);
+      padding: 40px 0;
+      font-size: .9rem;
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    /* ── Arsenal Manager ────────────────────── */
+    .arsenal-toggle-wrap {
+      text-align: center;
+      margin: 36px 0 16px;
+    }
+    .btn-arsenal {
+      background: var(--surface2);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 28px;
+      font-size: .85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .btn-arsenal:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-arsenal.open  { border-color: var(--accent); color: var(--accent); background: rgba(245,197,24,.06); }
+    #arsenalPanel {
+      display: none;
+      max-width: 860px;
+      margin: 0 auto 48px;
+    }
+    #arsenalPanel.open { display: block; }
+    .ars-warbond {
+      margin-bottom: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .ars-warbond-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+    }
+    .ars-warbond-name {
+      flex: 1;
+      font-size: .68rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+    .ars-warbond-header.utility .ars-warbond-name { color: var(--muted); }
+    .ars-bulk-btn {
+      font-size: .62rem;
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .12s;
+    }
+    .ars-bulk-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+    .ars-page {
+      padding: 10px 14px 12px;
+      border-bottom: 1px solid rgba(255,255,255,.04);
+    }
+    .ars-page:last-child { border-bottom: none; }
+    .ars-page-label {
+      font-size: .58rem;
+      font-weight: 700;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .ars-cat { margin-bottom: 7px; }
+    .ars-cat:last-child { margin-bottom: 0; }
+    .ars-cat-name {
+      font-size: .57rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      opacity: .65;
+      margin-bottom: 5px;
+    }
+    .ars-items { display: flex; flex-wrap: wrap; gap: 5px; }
+    .ars-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px 4px 7px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      font-size: .75rem;
+      cursor: pointer;
+      transition: opacity .15s, border-color .15s;
+      user-select: none;
+    }
+    .ars-item:hover { border-color: var(--accent); }
+    .ars-item-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+    .ars-item-name {
+      font-size: .84rem;
+      font-weight: 800;
+      line-height: 1.22;
+      color: #f4f4f5;
+    }
+    .ars-item-meta {
+      font-size: .66rem;
+      color: #a1a1aa;
+      line-height: 1.24;
+    }
+    .ars-item-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 3px;
+      line-height: 1.2;
+    }
+    .ars-tag {
+      display: inline-flex;
+      align-items: center;
+      font-size: .56rem;
+      font-weight: 600;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 999px;
+      opacity: .72;
+      filter: saturate(.72) brightness(.9);
+    }
+    .ars-item.off {
+      opacity: .3;
+      text-decoration: line-through;
+      border-color: transparent;
+      background: transparent;
+    }
+    .ars-tog {
+      width: 26px; height: 14px;
+      border-radius: 7px;
+      background: var(--border);
+      position: relative;
+      flex-shrink: 0;
+      transition: background .15s;
+    }
+    .ars-tog::after {
+      content: '';
+      position: absolute;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #666;
+      top: 2px; left: 2px;
+      transition: transform .15s, background .15s;
+    }
+    .ars-item:not(.off) .ars-tog { background: rgba(74,222,128,.2); }
+    .ars-item:not(.off) .ars-tog::after {
+      background: var(--green);
+      transform: translateX(12px);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Helldivers Build Randomizer</h1>
+  <p>Helldivers 2 — randomize your loadout for democracy!</p>
+</header>
+
+<!-- Build type filter -->
+<div class="panel">
+  <div class="panel-title">Build Role (select 1)</div>
+  <div class="pill-group" id="buildPills">
+    <div class="pill active" data-build="any">Managed Democracy Loadout (Anything goes)</div>
+    <div class="pill" data-build="balanced">(Perfectly) Balanced - As all things should be</div>
+    <div class="pill" data-build="at">Anti-Tank</div>
+    <div class="pill" data-build="chaff">Chaff Clearing</div>
+    <div class="pill" data-build="close">Close Combat</div>
+    <div class="pill" data-build="denial">Crowd Control</div>
+    <div class="pill" data-build="stealth">Stealth</div>
+    <div class="pill" data-build="mobility">Mobility</div>
+    <div class="pill" data-build="support">Team Support</div>
+    <div class="pill" data-build="defense">Defense</div>
+  </div>
+</div>
+
+<!-- Options -->
+<div class="panel">
+  <div class="options-row">
+    <div class="option-group">
+      <div class="option-label">Weapon Themes (select up to 2)</div>
+      <div class="radio-group" id="themeOptions">
+        <label><input type="checkbox" name="theme" value="ballistic" checked> Ballistic</label>
+        <label><input type="checkbox" name="theme" value="fire"> Fire / Incendiary</label>
+        <label><input type="checkbox" name="theme" value="gas"> Gas</label>
+        <label><input type="checkbox" name="theme" value="plasma"> Plasma</label>
+        <label><input type="checkbox" name="theme" value="laser"> Laser</label>
+        <label><input type="checkbox" name="theme" value="explosive"> Explosive</label>
+        <label><input type="checkbox" name="theme" value="melee"> Melee</label>
+        <label><input type="checkbox" name="theme" value="stun"> Stun / Stagger</label>
+        <label><input type="checkbox" name="theme" value="arc"> Arc</label>
+      </div>
+    </div>
+    <div class="option-group">
+      <div class="option-label">Filler Stratagem Pools</div>
+      <div class="radio-group" id="fillerOptions">
+        <label><input type="checkbox" name="fillerPool" value="orbitals" checked> Orbitals</label>
+        <label><input type="checkbox" name="fillerPool" value="air" checked> Air Support</label>
+        <label><input type="checkbox" name="fillerPool" value="turrets" checked> Sentry Turrets</label>
+        <label><input type="checkbox" name="fillerPool" value="mines" checked> Mines</label>
+        <label><input type="checkbox" name="fillerPool" value="emplacements" checked> Emplacements</label>
+      </div>
+      <div class="option-label" style="margin-top:14px;">Vehicles</div>
+      <div class="radio-group">
+        <label><input type="radio" name="vehicle" value="auto" checked> Auto</label>
+        <label><input type="radio" name="vehicle" value="force"> Include Vehicle</label>
+        <label><input type="radio" name="vehicle" value="exclude"> No Vehicles</label>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="btn-wrap">
+  <button class="btn-randomize" onclick="randomize()">⚡ Randomize Build</button>
+</div>
+
+<div class="warning" id="warning"></div>
+
+<div class="section-header">Loadout</div>
+<div class="results" id="loadout">
+  <div class="empty-state" style="grid-column:1/-1">Hit Randomize to generate a build.</div>
+</div>
+
+<div class="section-header">Booster</div>
+<div class="results" id="booster">
+  <div class="empty-state" style="grid-column:1/-1">Hit Randomize to generate a booster.</div>
+</div>
+
+<div class="section-header">Stratagems</div>
+<div class="results" id="results">
+  <div class="empty-state" style="grid-column:1/-1">Hit Randomize to generate a build.</div>
+</div>
+
+<div class="arsenal-toggle-wrap">
+  <button class="btn-arsenal" id="arsenalBtn" onclick="toggleArsenal()">⚙ Manage Arsenal</button>
+</div>
+<div id="arsenalPanel"></div>
+
+<div class="panel" id="debugPanel" style="max-width:860px;margin:20px auto 48px;">
+  <div class="panel-title">Tag Audit / Debug</div>
+  <details id="debugDetails">
+    <summary style="cursor:pointer;color:var(--muted);font-size:.82rem;">Show inferred tags, audit issues, and build validation details</summary>
+    <pre id="debugOutput" style="margin-top:12px;font-size:.72rem;line-height:1.45;color:var(--text);white-space:pre-wrap;max-height:360px;overflow:auto;background:var(--surface2);border:1px solid var(--border);padding:12px;border-radius:8px;"></pre>
+  </details>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  STRATAGEM DATABASE
+// ═══════════════════════════════════════════════
+
+const DB = {
+
+  support: [
+    { name:'MG-43 Machine Gun',                tags:['chaff','ballistic'],                  desc:'Sustained-fire LMG, shreds light and medium infantry.' },
+    { name:'APW-1 Anti-Materiel Rifle',        tags:['at','ballistic'],             desc:'High-velocity shots penetrate medium and heavy armor.' },
+    { name:'M-105 Stalwart',                   tags:['chaff','ballistic'],                  desc:'Lightweight LMG — fire while sprinting, great for mob control.' },
+    { name:'EAT-17 Expendable AT',             tags:['at'],                     desc:'Single-use rocket launcher, call in two at a time. Cheap and effective.', closer:true },
+    { name:'GR-8 Recoilless Rifle',            tags:['at'],                     desc:'Powerful AT rocket with teammate-loadable backpack ammo.', hasBackpack:true, closer:true },
+    { name:'FLAM-40 Flamethrower',             tags:['fire','chaff','close'],   desc:'Ignites everything in a short cone — devastating against swarms.' },
+    { name:'AC-8 Autocannon',                  tags:['at','chaff','ballistic'],             desc:'Semi-auto cannon with backpack ammo. Versatile medium-armor killer.', hasBackpack:true, closer:true },
+    { name:'GL-21 Grenade Launcher',           tags:['chaff','explosive','ballistic'],            desc:'Lobs grenades for area clearing; needs supply pack to sustain.', closer:true },
+    { name:'MG-206 Heavy Machine Gun',         tags:['chaff','at','ballistic'],             desc:'Hard-hitting LMG that staggers and damages medium-armored foes.' },
+    { name:'RS-422 Railgun',                   tags:['at','ballistic'],                     desc:'Charged shot punches through the heaviest armor. Safe or unsafe mode.', closer:true },
+    { name:'FAF-14 Spear',                     tags:['at'],                     desc:'Lock-on rocket with backpack — smart-targets fabricators and tanks.', hasBackpack:true, closer:true },
+    { name:'LAS-98 Laser Cannon',              tags:['at','laser'],             desc:'Sustained laser burns through medium armor; unlimited ammo.' },
+    { name:'ARC-3 Arc Thrower',                tags:['chaff','close','arc'],          desc:'Chain-lightning that obliterates clustered enemies at short range.' },
+    { name:'RL-77 Airburst Launcher',          tags:['chaff','explosive'],            desc:'Proximity-detonating rocket — destroys air-burst clusters of chaff.', hasBackpack:true, closer:true },
+    { name:'LAS-99 Quasar Cannon',             tags:['at','laser'],             desc:'Rechargeable laser cannon — unlimited shots, heavy AT capability.', closer:true },
+    { name:'MLS-4X Commando',                  tags:['at','ballistic'],                     desc:'Four-shot guided rocket launcher; good for multiple heavy targets.', closer:true },
+    { name:'StA-X3 W.A.S.P. Launcher',        tags:['at','explosive'],               desc:'Homing missile launcher — burst or airburst mode, great against clusters.', hasBackpack:true },
+    { name:'TX-41 Sterilizer',                 tags:['chaff','close','gas'],   desc:'Corrosive spray weapon that melts light infantry and strips armor.' },
+    { name:'CQC-1 One True Flag',              tags:['chaff','melee'],          desc:'Flag that buffs nearby allies and deals melee damage to close enemies.' },
+    { name:'GL-52 De-Escalator',               tags:['chaff','explosive','ballistic'],            desc:'Underbarrel grenade launcher hybrid — compact area denial.', closer:true },
+    { name:'PLAS-45 Epoch',                    tags:['at','plasma'],             desc:'Heavy plasma cannon — charged shots obliterate armored targets.', closer:true },
+    { name:'S-11 Speargun',                    tags:['at','denial','ballistic'],                     desc:'Anti-tank speargun — penetrates heavy armor at range.', hasBackpack:true, closer:true },
+    { name:'EAT-700 Expendable Napalm',        tags:['fire','explosive'],             desc:'Single-use incendiary rocket — scorches a wide area on impact.' },
+    { name:'MS-11 Solo Silo',                  tags:['at','explosive','ballistic'],               desc:'Portable missile silo — deploys and fires a single heavy warhead.', closer:true },
+    { name:'M-1000 Maxigun',                   tags:['chaff','at','ballistic'],             desc:'Massive minigun with overwhelming sustained suppressive fire.', hasBackpack:true },
+    { name:'CQC-9 Defoliation Tool',           tags:['fire','chaff','close'],   desc:'Industrial flamethrower variant for extreme close-range clearing.' },
+    { name:'B/MD C4 Pack',                     tags:['at','explosive'],               desc:'Deployable C4 charge — place and detonate for massive damage.', hasBackpack:true, closer:true },
+    { name:'CQC-20 Breaching Hammer',          tags:['melee','at'],             desc:'Heavy hammer for breaching — massive stagger and structural damage.', closer:true },
+    { name:'EAT-411 Leveller',                 tags:['at', 'explosive','ballistic'],                     desc:'Multi-shot expendable AT launcher — fires a burst of rockets.', closer:true },
+    { name:'GL-28 Belt-Fed Grenade Launcher',  tags:['chaff','explosive','ballistic'],            desc:'Sustained belt-fed grenade launcher — relentless area saturation.', hasBackpack:true, closer:true },
+    { name:'B/FLAM-80 Cremator',               tags:['fire','explosive'],             desc:'Backpack flamethrower system — wide-area incendiary coverage.', hasBackpack:true, },
+    { name:'EXO-45 Patriot Exosuit',           tags:['at','chaff'],             desc:'Mech suit with rockets and minigun. Dominate the battlefield.', isMech:true, closer:true },
+    { name:'EXO-49 Emancipator Exosuit',       tags:['chaff','at'],             desc:'Mech with dual autocannons for sustained heavy suppression.', isMech:true, closer:true },
+  ],
+
+  backpack: [
+    { name:'B-1 Supply Pack',               tags:['support','ballistic'],              desc:'Resupply yourself and teammates. Pairs with ammo-hungry weapons.' },
+    { name:'SH-32 Shield Generator Pack',   tags:['support','defense'],    desc:'Personal energy shield — absorbs incoming damage before it hits.' },
+    { name:'LIFT-850 Jump Pack',            tags:['mobility','support'],   desc:'Boost-jump over terrain or engage/disengage from close combat.' },
+    { name:'SH-20 Ballistic Shield Backpack',tags:['melee','support','ballistic'],     desc:'Carry a ballistic shield in one hand, great for melee brawls.' },
+    { name:'AX/LAS-5 Rover',               tags:['chaff','laser'],        desc:'Floating laser drone autonomously shoots nearby enemies.' },
+    { name:'AX/AR-23 Guard Dog',           tags:['chaff','ballistic'],                desc:'Floating assault rifle drone provides automatic suppression.' },
+    { name:'AX/TX-13 Dog Breath',          tags:['chaff','fire','close'], desc:'Floating flamethrower drone — scorches nearby enemies.' },
+    { name:'SH-51 Directional Shield',     tags:['support','defense'],    desc:'Directional energy shield that blocks incoming fire from one side.' },
+    { name:'B-100 Portable Hellbomb',      tags:['at','explosive'],             desc:'Portable hellbomb backpack — arm and detonate for massive explosive.', closer:true },
+    { name:'AX/ARC-3 K-9',                tags:['chaff','close', 'arc'],        desc:'Arc-equipped robo-dog that shocks nearby enemies.' },
+    { name:'LIFT-860 Hover Pack',          tags:['mobility','close'],      desc:'Enables sustained flight — reposition freely above the battlefield.' },
+    { name:'AX/FLAM-75 Hot Dog',           tags:['fire','chaff','close'], desc:'Floating flamethrower guard dog — intense close-range fire.' },
+    { name:'LIFT-182 Warp Pack',           tags:['mobility','close'],      desc:'Short-range teleport backpack — blink to reposition instantly.' },
+  ],
+
+
+vehicle: [
+  { name:'EXO-45 Patriot Exosuit',      tags:['at','chaff','ballistic'], desc:'Mech suit with rockets and minigun. Dominate the battlefield.', isVehicle:true, closer:true },
+  { name:'EXO-49 Emancipator Exosuit',  tags:['chaff','at','ballistic'], desc:'Mech with dual autocannons for sustained heavy suppression.', isVehicle:true, closer:true },
+  { name:'TD-220 Bastion Mk XVI',       tags:['at','explosive','ballistic'], desc:'A tank armed with a 120mm HV cannon and a heavy coaxial MG.', isVehicle:true, closer:true },
+  { name:'M-102 Fast Recon Vehicle',    tags:['mobility','support','ballistic'], desc:'Fast Recon Vehicle (FRV) for rapid movement, drive-by support, and objective rushing.', isVehicle:true },
+],
+
+  orbital: [
+    { name:'Orbital Precision Strike',   tags:['at'],                     desc:'Single focused strike — excellent for taking out fabricators or tanks.', closer:true },
+    { name:'Orbital Gatling Barrage',    tags:['chaff', 'denial'],                  desc:'Rapid-fire gatling cannon strafes an area, shredding light troops.' },
+    { name:'Orbital Airburst Strike',    tags:['chaff','explosive','denial'],            desc:'Airburst shell detonates above ground — lethal against exposed infantry.', closer:true },
+    { name:'Orbital 120mm HE Barrage',   tags:['explosive','denial'],                    desc:'Sustained HE barrage saturates an area with explosive rounds.', closer:true },
+    { name:'Orbital 380mm HE Barrage',   tags:['at','explosive','denial'],               desc:'Heavy barrage with massive shells — destroys structures and heavies.', closer:true },
+    { name:'Orbital Walking Barrage',    tags:['explosive','denial'],                    desc:'Line of shells walks forward, clearing a path through enemies.', closer:true },
+    { name:'Orbital Laser',              tags:['at','laser'],             desc:'Sustained orbital laser carves through anything in its path.', closer:true },
+    { name:'Orbital Railcannon Strike',  tags:['at'],                     desc:'Single high-velocity round instantly kills any heavy target.', closer:true },
+    { name:'Orbital EMS Strike',         tags:['support','denial'],       desc:'EMP field slows and immobilizes enemies in the target zone.' },
+    { name:'Orbital Smoke Strike',       tags:['support', 'stealth'],                desc:'Drops smoke cover for tactical repositioning or extraction.' },
+    { name:'Orbital Gas Strike',         tags:['chaff','denial','gas'],         desc:'Releases toxic gas cloud — effective against Terminid swarms.' },
+    { name:'Orbital Napalm Barrage',     tags:['fire','denial'],             desc:'Incendiary orbital barrage — scorches a wide area.', closer:true },
+  ],
+
+  eagle: [
+    { name:'Eagle Strafing Run',         tags:['chaff'],                  desc:'Fast gun run shreds light infantry along a strafing line.' },
+    { name:'Eagle Airstrike',            tags:['at','explosive'],               desc:'Cluster of bombs dropped on target — destroys structures and armor.', closer:true },
+    { name:'Eagle Cluster Bomb',         tags:['chaff','explosive',],            desc:'Carpet of submunitions saturates area — excellent crowd clearing.', closer:true },
+    { name:'Eagle Napalm Airstrike',     tags:['fire','chaff','denial'],     desc:'Incendiary strike creates a burning zone, denies and kills infantry.' },
+    { name:'Eagle Smoke Strike',         tags:['support','stealth'],                desc:'Smoke screen dropped by Eagle for cover or distraction.' },
+    { name:'Eagle 110mm Rocket Pods',    tags:['at'],                     desc:'Unguided rocket pod strafing run — punishes armored targets.', closer:true },
+    { name:'Eagle 500kg Bomb',           tags:['at','explosive'],               desc:'Single massive bomb — destroys any objective or heavy enemy.', closer:true },
+  ],
+
+  sentry: [
+    { name:'A/MG-43 Machine Gun Sentry',     tags:['chaff','defense'],                    desc:'Auto sentry that engages light infantry with sustained fire.' },
+    { name:'A/G-16 Gatling Sentry',          tags:['chaff','defense'],                    desc:'High-RPM rotary sentry — excellent for horde defense.' },
+    { name:'A/M-12 Mortar Sentry',           tags:['chaff','explosive','defense'],              desc:'Arcing mortar lobs HE shells at distant enemies.' },
+    { name:'A/AC-8 Autocannon Sentry',       tags:['at','chaff','defense'],               desc:'Auto-tracked sentry that engages medium and heavy targets.' },
+    { name:'A/MLS-4X Rocket Sentry',         tags:['at','defense'],                       desc:'Guided rocket sentry focuses on armored and heavy enemies.' },
+    { name:'A/M-23 EMS Mortar Sentry',       tags:['support','denial','chaff','defense'], desc:'Fires EMS rounds that slow and stun enemies in an area.' },
+    { name:'A/ARC-3 Tesla Tower',            tags:['chaff','denial','defense'],           desc:'Electric tower zaps anything nearby — great for choke points.' },
+    { name:'A/LAS-98 Laser Sentry',          tags:['at','laser','defense'],               desc:'Laser sentry with high accuracy — burns through medium armor.' },
+    { name:'A/FLAM-40 Flame Sentry',         tags:['fire','chaff','denial','defense'],             desc:'Automated flamethrower sentry — denies chokepoints with fire.' },
+    { name:'A/GM-17 Gas Mortar Sentry',      tags:['chaff','denial','gas','defense'],           desc:'Mortar sentry firing gas rounds — toxic area denial.' },
+    { name:'MD-6 Anti-Personnel Minefield',  tags:['chaff','denial','defense'],           desc:'Scattered mines that detonate on light enemy contact.' },
+    { name:'MD-17 Anti-Tank Mines',          tags:['at','denial','defense'],              desc:'Heavy mines triggered only by armored vehicles and heavies.' },
+    { name:'MD-I4 Incendiary Mines',         tags:['fire','chaff','denial','defense'],    desc:'Incendiary mines ignite on contact — area denial with fire.' },
+    { name:'MD-8 Gas Mines',                 tags:['chaff','denial','gas','defense'],           desc:'Gas mines that release toxic clouds on enemy contact.' },
+    { name:'E/MG-101 HMG Emplacement',       tags:['chaff','defense'],                    desc:'Manned heavy machine gun emplacement for stationary defense.' },
+    { name:'E/GL-21 Grenadier Battlement',   tags:['chaff','explosive','defense'],              desc:'Grenade-launching emplacement for sustained area saturation.', closer:true },
+    { name:'E/AT-12 Anti-Tank Emplacement',  tags:['at','defense'],                       desc:'Manned anti-tank cannon emplacement for heavy target elimination.', closer:true },
+    { name:'FX-12 Shield Generator Relay',   tags:['support','defense'],                  desc:'Dome shield protects all allies within its radius.' },
+  ],
+
+  primary: [
+    // ── Helldivers Mobilize! ──
+    { name:'AR-23 Liberator',                    tags:['chaff','ballistic'],              desc:'Standard assault rifle. Reliable, versatile, well-rounded.' },
+    { name:'AR-23P Liberator Penetrator',        tags:['at','chaff','ballistic'],         desc:'Burst-fire AR with medium armor penetration.' },
+    { name:'SG-225 Breaker',                     tags:['chaff','close','ballistic'],      desc:'Heavy-hitting semi-auto shotgun, excellent up close.' },
+    { name:'SG-225SP Breaker Spray & Pray',      tags:['chaff','close','ballistic'],      desc:'High-pellet-count shotgun, devastating in close swarms.' },
+    { name:'SG-8 Punisher',                      tags:['chaff','close','ballistic'],      desc:'Pump-action shotgun with solid range and stagger.' },
+    { name:'SG-8S Slugger',                      tags:['at','close','ballistic'],         desc:'Single-slug shotgun — heavy stagger on medium targets.' },
+    { name:'SMG-37 Defender',                    tags:['chaff','ballistic'],              desc:'Stable SMG with good accuracy, reliable all-purpose primary.' },
+    { name:'R-63 Diligence',                     tags:['at','chaff','ballistic'],         desc:'Semi-auto marksman rifle, fast follow-up shots.' },
+    { name:'R-63CS Diligence Counter Sniper',    tags:['at','ballistic'],                 desc:'High-damage sniper with heavy armor penetration.' },
+    { name:'LAS-5 Scythe',                       tags:['laser','chaff'],      desc:'Continuous laser beam, no ammo — great sustained damage.' },
+    { name:'PLAS-1 Scorcher',                    tags:['at','explosive','plasma'],           desc:'Plasma explosive rounds — closes bug holes and factories.', closer:true },
+    // ── Base game (starts unlocked) ──
+    { name:'R-2124 Constitution',                tags:['at','chaff','ballistic'],         desc:'Classic bolt-action rifle — high accuracy, deliberate fire.' },
+    { name:'DBS-2 Double Freedom',               tags:['chaff','close','ballistic'],      desc:'Double-barreled shotgun — massive burst of damage at close range.' },
+    { name:'MP-98 Knight',                       tags:['chaff','close','ballistic'],      desc:'Compact SMG with high fire rate, suited for tight spaces.' },
+    // ── Steeled Veterans ──
+    { name:'AR-23C Liberator Concussive',        tags:['chaff','ballistic'],              desc:'Concussive rounds stagger and disorient enemies.' },
+    { name:'SG-225IE Breaker Incendiary',        tags:['fire','chaff','close'],desc:'Incendiary pellets ignite targets — great for bug swarms.' },
+    { name:'JAR-5 Dominator',                    tags:['at','explosive','ballistic'],                 desc:'Semi-auto explosive rounds stagger and penetrate medium armor.', closer:true },
+    // ── Cutting Edge ──
+    { name:'LAS-16 Sickle',                      tags:['laser','chaff'],      desc:'Burst laser primary — heat-managed, very ammo-efficient.' },
+    { name:'SG-8P Punisher Plasma',              tags:['at','explosive','plasma'],           desc:'Plasma shotgun blasts — damages and staggers grouped targets.', closer:true },
+    { name:'ARC-12 Blitzer',                     tags:['chaff','close','arc'],      desc:'Arc shotgun — chains lightning to nearby targets, no ammo.' },
+    // ── Democratic Detonation ──
+    { name:'BR-14 Adjudicator',                  tags:['at','chaff','ballistic'],         desc:'Battle rifle with medium pen — effective against armored infantry.' },
+    { name:'CB-9 Exploding Crossbow',            tags:['at','explosive','ballistic'],           desc:'Explosive bolt crossbow — one-shots bug holes and spore spewers.', closer:true },
+    { name:'R-36 Eruptor',                       tags:['at','explosive','ballistic'],           desc:'Bolt-action explosive rifle — large blast radius closes objectives.', closer:true },
+    // ── Polar Patriots ──
+    { name:'AR-61 Tenderizer',                   tags:['chaff','ballistic'],              desc:'High-damage AR, slightly slower fire rate for better accuracy.' },
+    { name:'SMG-72 Pummeler',                    tags:['chaff','close','ballistic'],      desc:'Concussive SMG — stuns enemies on hit, great crowd control.' },
+    { name:'PLAS-101 Purifier',                  tags:['at','explosive','plasma'],           desc:'Charged plasma burst — high single-target and structure damage.', closer:true },
+    // ── Viper Commandos ──
+    { name:'AR-23A Liberator Carbine',           tags:['chaff','ballistic'],              desc:'Compact carbine variant — lighter with shorter barrel for mobility.' },
+    // ── Freedom\'s Flame ──
+    { name:'SG-451 Cookout',                     tags:['fire','chaff','close'],desc:'Incendiary shotgun — fires burning slugs that ignite on impact.' },
+    { name:'FLAM-66 Torcher',                    tags:['fire','chaff','close'],desc:'Incendiary primary with continuous flame output for extreme close range.' },
+    // ── Truth Enforcers ──
+    { name:'SG-20 Halt',                         tags:['chaff','close'],      desc:'Combat shotgun with effective crowd-stopping power.' },
+    { name:'SMG-32 Reprimand',                   tags:['chaff'],              desc:'Full-auto SMG with high damage per shot for a submachine gun.' },
+    // ── Servants of Freedom ──
+    { name:'LAS-17 Double-Edge Sickle',          tags:['laser','chaff'],      desc:'Dual-blade laser primary — continuous cutting beams, zero ammo.' },
+    // ── Borderline Justice ──
+    { name:'R-6 Deadeye',                        tags:['at'],                 desc:'Long-range precision rifle — high damage per shot against armored targets.' },
+    // ── Masters of Ceremony ──
+    { name:'R-2 Amendment',                      tags:['at','chaff'],         desc:'Precision marksman rifle with improved handling over the Diligence.' },
+    // ── Force of Law ──
+    { name:'AR-32 Pacifier',                     tags:['chaff'],              desc:'Balanced assault rifle with crowd-control capabilities.' },
+    // ── Control Group ──
+    { name:'VG-70 Variable',                     tags:['chaff','at'],         desc:'Adaptive variable-load rifle — switches between engagement modes.' },
+    // ── Dust Devils ──
+    { name:'AR-2 Coyote',                        tags:['chaff','ballistic','mobility'], desc:'Nimble assault rifle — high fire rate suited for fast aggressive play.' },
+    // ── Python Commandos ──
+    { name:'AR/GL-21 One-Two',                   tags:['chaff','explosive'],        desc:'AR with integrated grenade launcher — versatile combo weapon.', closer:true },
+    // ── Redacted Regiment ──
+    { name:'AR-59 Suppressor',                   tags:['chaff'],              desc:'Suppressed assault rifle for stealth and silent engagements.' },
+    { name:'R-72 Censor',                        tags:['at','stealth'],                 desc:'Suppressed marksman rifle — quiet precision for targeted eliminations.' },
+    // ── Siege Breakers ──
+    { name:'LAS-13 Trident',                     tags:['laser','close'],         desc:'Triple-beam laser rifle — penetrates multiple targets in a line.' },
+    // ── Entrenched Division ──
+    { name:'SMG/FLAM-34 Stoker',                 tags:['fire','chaff','close'],desc:'Flamethrower-SMG hybrid — burns enemies while maintaining rate of fire.' },
+    // ── Obedient Democracy Support Troopers ──
+    { name:'MA5C Assault Rifle',                 tags:['chaff'],              desc:'Crossover assault rifle with robust reliability and good ammo economy.' },
+    { name:'M7S SMG',                            tags:['chaff','close'],      desc:'Crossover submachine gun — compact, reliable, good rate of fire.' },
+    { name:'M90A Shotgun',                       tags:['chaff','close','ballistic'], desc:'Crossover shotgun — rugged and hard-hitting at close range.' },
+    // ── Righteous Revenants ──
+    { name:'StA-52 Assault Rifle',               tags:['chaff','ballistic'], desc:'Crossover energy-kinetic hybrid rifle — precision and reliability.' },
+    { name:'StA-11 SMG',                         tags:['chaff','close','ballistic'], desc:'Crossover compact SMG — good rate of fire for close situations.' },
+    { name:'PLAS-39 Accelerator Rifle',          tags:['at','plasma'],                 desc:'Crossover plasma rifle — high muzzle velocity, good armor penetration.' },
+  ],
+
+  secondary: [
+    { name:'P-2 Peacemaker',        tags:['chaff'],          desc:'Standard-issue pistol. Reliable backup for any situation.' },
+    { name:'P-19 Redeemer',         tags:['chaff','close'],  desc:'Full-auto machine pistol — mag dumps in a pinch.' },
+    { name:'P-4 Senator',           tags:['at'],             desc:'High-caliber revolver — 6 shots of serious stopping power.' },
+    { name:'P-11 Stim Pistol',      tags:['support'],        desc:'Fires stim syringes at teammates — keep your squad alive.' },
+    { name:'P-72 Crisper',          tags:['fire','close'],   desc:'Miniature flamethrower pistol — lights enemies up at close range.' },
+    { name:'P-113 Verdict',         tags:['at'],             desc:'High-caliber semi-auto pistol with medium armor penetration.' },
+    { name:'P-35 Re-Educator',      tags:['chaff'],          desc:'Compact pistol that temporarily affects enemy behavior.' },
+    { name:'P-69 Veto',             tags:['chaff','close'],  desc:'Compact pistol with fast fire rate for close-quarters.' },
+    { name:'GP-31 Grenade Pistol',  tags:['at','explosive'],       desc:'Fires grenade rounds — closes bug holes and destroys fabricators.', closer:true },
+    { name:'GP-20 Ultimatum',       tags:['at','explosive'],       desc:'Single-shot break-open launcher — massive close-range blast.', closer:true },
+    { name:'SG-22 Bushwhacker',     tags:['close','chaff'],  desc:'Triple-barrel break-action shotgun pistol — massive close-range burst.' },
+    { name:'LAS-7 Dagger',          tags:['laser'],          desc:'Compact laser pistol — infinite ammo, low damage.' },
+    { name:'LAS-58 Talon',          tags:['laser'],          desc:'Precision laser pistol with high damage output for a sidearm.' },
+    { name:'PLAS-15 Loyalist',      tags:['at','plasma'],             desc:'Plasma pistol with medium armor penetration.' },
+    { name:'M6C/SOCOM Pistol',      tags:['chaff'],          desc:'Crossover standard-issue pistol — reliable and accurate.' },
+    { name:'CQC-19 Stun Lance',     tags:['melee','close'],  desc:'Electric lance that stuns and staggers enemies on contact.' },
+    { name:'CQC-2 Saber',           tags:['melee','close'],  desc:'Combat saber — fast melee strikes that cleave light targets.' },
+    { name:'CQC-73 Entrenchment Tool',tags:['melee','support'],desc:'Multi-purpose shovel — doubles as a melee weapon in a pinch.' },
+  ],
+
+  grenade: [
+    { name:'G-6 Frag',               tags:['chaff','explosive'],    desc:'Standard frag — reliable for closing bug holes and factories.', closer:true },
+    { name:'G-12 High Explosive',    tags:['at','explosive'],       desc:'Larger blast radius, more damage — dependable objective closer.', closer:true },
+    { name:'G-16 Impact',            tags:['at','explosive'],       desc:'Detonates instantly on impact — fast, precise hole-closing.', closer:true },
+    { name:'G-13 Incendiary Impact', tags:['fire','explosive'],     desc:'Impact detonation with fire splash — closes holes and ignites.', closer:true },
+    { name:'G-10 Incendiary',        tags:['fire','explosive'],     desc:'Burns an area on contact — excellent against Terminid swarms.', closer:true },
+    { name:'G-123 Thermite',         tags:['at','fire'],      desc:'Sticks to surfaces and burns intensely — melts armor and closes objectives.', closer:true },
+    { name:'G-4 Gas',                tags:['chaff','denial','gas'], desc:'Releases toxic gas cloud — lethal to Terminids in the area.' },
+    { name:'G-3 Smoke',              tags:['support','stealth','denial'],        desc:'Creates a smoke screen for cover and disengagement.' },
+    { name:'G-23 Stun',              tags:['denial','chaff'],desc:'Stuns and slows enemies — buy time to reposition or execute.' },
+    { name:'K-2 Throwing Knife',     tags:['close'],          desc:'Silent, precise, and satisfying. No blast — bring backup for objectives.' },
+    { name:'G-7 Pineapple',          tags:['chaff','explosive'],    desc:'Fragmentation grenade with wide kill radius against light troops.' },
+    { name:'G-50 Seeker',            tags:['explosive'],       desc:'Smart grenade that homes onto the nearest target after throw.', closer:true },
+    { name:'G-142 Pyrotech',         tags:['fire','explosive'],     desc:'Incendiary grenade with intense thermite-like burn on detonation.' },
+    { name:'G-109 Urchin',           tags:['chaff','denial'], desc:'Deploys a spike cluster that damages enemies passing through.' },
+    { name:'G-31 Arc',               tags:['chaff','close','arc'],  desc:'Arc grenade that chains electricity through groups of enemies.' },
+    { name:'TED-63 Dynamite',        tags:['at','explosive'],       desc:'High-yield explosive bundle — exceptional structure and armor damage.', closer:true },
+    { name:'TM-1 Lure Mine',         tags:['chaff','denial'], desc:'Deployable mine that lures and traps nearby enemies.' },
+    { name:'G/SH-39 Shield',         tags:['support'],        desc:'Throwable shield grenade — creates a temporary protective barrier.' },
+    { name:'G-48 Giga Grenade',      tags:['at','explosive'],       desc:'Massive explosive grenade — enormous blast radius for area clearing.', closer:true },
+  ],
+
+  armor: [],
+
+booster: [
+  { name:'Hellpod Space Optimization', tags:['support','ballistic'], desc:'Drop with full ammo, grenades, and stims.' },
+  { name:'Vitality Enhancement',       tags:['support'], desc:'Improves overall survivability.' },
+  { name:'Stamina Enhancement',        tags:['mobility'], desc:'Increases stamina capacity for movement-heavy builds.' },
+  { name:'Muscle Enhancement',         tags:['mobility','melee'], desc:'Improves movement through difficult terrain and melee-heavy play.' },
+  { name:'Localization Confusion',     tags:['stealth','support'], desc:'Reduces enemy reinforcement pressure.' },
+  { name:'UAV Recon Booster',          tags:['stealth','support'], desc:'Improves battlefield awareness and target detection.' },
+  { name:'Expert Extraction Pilot',    tags:['support','mobility'], desc:'Shortens extraction arrival time.' },
+  { name:'Experimental Infusion',      tags:['close','mobility'], desc:'Stim bursts give aggressive pushes more momentum.' },
+  { name:'Motivational Shocks',        tags:['arc','support'], desc:'Recover faster from slowing effects.' },
+  { name:'Firebomb Hellpods',          tags:['fire','explosive'], desc:'Hellpods ignite impact zones for extra chaos.' },
+  { name:'Flexible Reinforcement Budget', tags:['support'], desc:'Adds more reinforcement flexibility for rough missions.' },
+],
+
+};
+
+// Override the original armor list with actual armor sets rather than generic passive buckets.
+DB.armor = [
+  { name:'CE-07 Demolition Specialist', weight:'Light',  passive:'Engineering Kit',             tags:['explosive','support'],         desc:'+2 grenades carried, reduced recoil while prone.' },
+  { name:'CM-21 Trench Paramedic',      weight:'Light',  passive:'Med-Kit',                     tags:['support'],                     desc:'+2 stims carried and longer stim duration.' },
+  { name:'SC-30 Trailblazer Scout',     weight:'Light',  passive:'Scout',                       tags:['stealth','mobility'],          desc:'Map markers generate scans and enemy detection range is reduced.' },
+  { name:'PH-9 Predator',               weight:'Light',  passive:'Peak Physique',               tags:['close','melee'],               desc:'Enhanced melee damage and improved weapon handling.' },
+  { name:'SC-37 Legionnaire',           weight:'Light',  passive:'Servo-Assisted',              tags:['support','explosive'],         desc:'Extended grenade throw range and improved limb health.' },
+  { name:'I-09 Heatseeker',             weight:'Light',  passive:'Inflammable',                 tags:['fire','close'],                desc:'Strong fire resistance for flame-heavy builds.' },
+  { name:'EX-00 Prototype X',           weight:'Light',  passive:'Electrical Conduit',          tags:['arc','defense'],               desc:'Very high resistance to arc damage.' },
+  { name:'AF-50 Noxious Ranger',        weight:'Light',  passive:'Advanced Filtration',         tags:['gas','stealth'],               desc:'Strong resistance to gas damage and gas-related effects.' },
+  { name:'UF-16 Inspector',             weight:'Light',  passive:'Unflinching',                 tags:['ballistic'],                   desc:'Reduced flinch while maintaining aim under pressure.' },
+  { name:'RE-1861 Parade Commander',    weight:'Light',  passive:'Reinforced Epaulettes',       tags:['melee','defense'],             desc:'Faster primary reloads, limb protection, and bonus melee damage.' },
+  { name:'BP-32 Jackboot',              weight:'Light',  passive:'Ballistic Padding',           tags:['ballistic','defense'],         desc:'Chest and explosive protection without changing armor class.' },
+  { name:'RS-20 Constrictor',           weight:'Light',  passive:'Rock Solid',                  tags:['close','melee','defense'],     desc:'Reduces stagger and increases melee damage.' },
+  { name:'RS-89 Shadow Paragon',        weight:'Light',  passive:'Reduced Signature',           tags:['stealth','mobility'],          desc:'Reduces movement noise and enemy detection range.' },
+  { name:'CPH-26 Commandant',           weight:'Light',  passive:'Concussive Padding, Hazmat',  tags:['explosive','gas','defense'],   desc:'Explosive resistance plus added gas protection and sidearm control.' },
+  { name:'AC-2 Obedient',               weight:'Light',  passive:'Acclimated',                  tags:['fire','gas','arc','defense'],  desc:'Broad resistance to fire, gas, acid, and arc damage.' },
+  { name:'GS-11 Democracy\'s Deputy',  weight:'Light',  passive:'Gunslinger',                  tags:['ballistic','close'],           desc:'Much stronger sidearm handling, reloads, and recoil control.' },
+  { name:'B-01 Tactical',               weight:'Medium', passive:'Extra Padding',               tags:['ballistic','defense'],         desc:'Higher armor rating without slowing this armor class further.' },
+  { name:'CE-27 Ground Breaker',        weight:'Medium', passive:'Engineering Kit',             tags:['explosive','support'],         desc:'+2 grenades carried, reduced recoil while prone.' },
+  { name:'CM-09 Bonesnapper',           weight:'Medium', passive:'Med-Kit',                     tags:['support'],                     desc:'+2 stims carried and longer stim duration.' },
+  { name:'DP-11 Champion of the People',weight:'Medium', passive:'Democracy Protects',          tags:['defense'],                     desc:'50% chance to survive lethal damage and prevents chest bleed damage.' },
+  { name:'FS-34 Exterminator',          weight:'Medium', passive:'Fortified',                   tags:['explosive','defense'],         desc:'Explosive resistance and recoil reduction while firing.' },
+  { name:'SA-25 Steel Trooper',         weight:'Medium', passive:'Servo-Assisted',              tags:['support','explosive'],         desc:'Extended grenade throw range and improved limb health.' },
+  { name:'SR-24 Street Scout',          weight:'Medium', passive:'Siege-Ready',                 tags:['ballistic','defense'],         desc:'Faster primary reloads and higher ammo capacity.' },
+  { name:'AC-1 Dutiful',                weight:'Medium', passive:'Acclimated',                  tags:['fire','gas','arc','defense'],  desc:'Broad resistance to fire, gas, acid, and arc damage.' },
+  { name:'I-92 Fire Fighter',           weight:'Medium', passive:'Inflammable',                 tags:['fire','close'],                desc:'Strong fire resistance for flame-heavy builds.' },
+  { name:'EX-03 Prototype 3',           weight:'Medium', passive:'Electrical Conduit',          tags:['arc','defense'],               desc:'Very high resistance to arc damage.' },
+  { name:'AF-02 Haz-Master',            weight:'Medium', passive:'Advanced Filtration',         tags:['gas','defense'],               desc:'Strong resistance to gas damage and gas-related effects.' },
+  { name:'UF-50 Bloodhound',            weight:'Medium', passive:'Unflinching',                 tags:['ballistic'],                   desc:'Reduced flinch while maintaining aim under pressure.' },
+  { name:'IE-12 Righteous',             weight:'Medium', passive:'Integrated Explosives',       tags:['explosive','support'],         desc:'Explosive death effect and increased throwable inventory.' },
+  { name:'GS-17 Frontier Marshal',      weight:'Medium', passive:'Gunslinger',                  tags:['ballistic','close'],           desc:'Much stronger sidearm handling, reloads, and recoil control.' },
+  { name:'RE-2310 Honorary Guard',      weight:'Medium', passive:'Reinforced Epaulettes',       tags:['melee','defense'],             desc:'Faster primary reloads, limb protection, and bonus melee damage.' },
+  { name:'BP-20 Correct Officer',       weight:'Medium', passive:'Ballistic Padding',           tags:['ballistic','defense'],         desc:'Chest and explosive protection without changing armor class.' },
+  { name:'AD-26 Bleeding Edge',         weight:'Medium', passive:'Adreno-Defibrillator',        tags:['arc','defense'],               desc:'One-time resuscitation, longer stim effect, and arc resistance.' },
+  { name:'DS-191 Scorpion',             weight:'Medium', passive:'Desert Stormer',              tags:['fire','gas','arc','mobility'], desc:'Multi-element resistance plus extra throw range.' },
+  { name:'RS-67 Null Cipher',           weight:'Medium', passive:'Reduced Signature',           tags:['stealth','mobility'],          desc:'Reduces movement noise and enemy detection range.' },
+  { name:'CPG-48 Sapper',               weight:'Medium', passive:'Concussive Padding, Grenadier', tags:['explosive','defense'],       desc:'Explosive resistance and +2 throwable capacity.' },
+  { name:'A-9 Helljumper',              weight:'Medium', passive:'Feet First',                  tags:['stealth','mobility'],          desc:'Quieter movement, better POI spotting, and immunity to leg injuries.' },
+  { name:'SA-7 Headfirst',              weight:'Medium', passive:'Supplementary Adrenaline',    tags:['defense','mobility'],          desc:'Regains stamina when hit and provides a higher armor rating.' },
+  { name:'B-27 Fortified Commando',     weight:'Heavy',  passive:'Extra Padding',               tags:['ballistic','defense'],         desc:'Highest armor rating among Extra Padding sets.' },
+  { name:'FS-55 Devastator',            weight:'Heavy',  passive:'Fortified',                   tags:['explosive','defense'],         desc:'Explosive resistance and recoil reduction while firing.' },
+  { name:'CE-64 Grenadier',             weight:'Heavy',  passive:'Engineering Kit',             tags:['explosive','support'],         desc:'+2 grenades carried, reduced recoil while prone.' },
+  { name:'CM-17 Butcher',               weight:'Heavy',  passive:'Med-Kit',                     tags:['support'],                     desc:'+2 stims carried and longer stim duration.' },
+  { name:'SA-32 Dynamo',                weight:'Heavy',  passive:'Servo-Assisted',              tags:['support','explosive'],         desc:'Extended grenade throw range and improved limb health.' },
+  { name:'I-44 Salamander',             weight:'Heavy',  passive:'Inflammable',                 tags:['fire','close'],                desc:'Strong fire resistance for flame-heavy builds.' },
+  { name:'PH-202 Twigsnapper',          weight:'Heavy',  passive:'Peak Physique',               tags:['close','melee'],               desc:'Enhanced melee damage and improved weapon handling.' },
+  { name:'SR-18 Roadblock',             weight:'Heavy',  passive:'Siege-Ready',                 tags:['ballistic','defense'],         desc:'Faster primary reloads and higher ammo capacity.' },
+  { name:'GS-66 Lawmaker',              weight:'Heavy',  passive:'Gunslinger',                  tags:['ballistic','close'],           desc:'Much stronger sidearm handling, reloads, and recoil control.' },
+  { name:'AD-49 Apollonian',            weight:'Heavy',  passive:'Adreno-Defibrillator',        tags:['arc','defense'],               desc:'One-time resuscitation, longer stim effect, and arc resistance.' },
+  { name:'DS-42 Federation\'s Blade',  weight:'Heavy',  passive:'Desert Stormer',              tags:['fire','gas','arc','defense'],  desc:'Multi-element resistance plus extra throw range.' },
+  { name:'RS-40 Beast of Prey',         weight:'Heavy',  passive:'Rock Solid',                  tags:['close','melee','defense'],     desc:'Reduces stagger and increases melee damage.' },
+  { name:'SA-8 Ram',                    weight:'Heavy',  passive:'Supplementary Adrenaline',    tags:['defense','mobility'],          desc:'Regains stamina when hit and provides a higher armor rating.' },
+  { name:'RE-824 Bearer of the Standard',weight:'Heavy', passive:'Reinforced Epaulettes',       tags:['melee','defense'],             desc:'Faster primary reloads, limb protection, and bonus melee damage.' },
+  { name:'BP-77 Grand Juror',           weight:'Heavy',  passive:'Ballistic Padding',           tags:['ballistic','defense'],         desc:'Chest and explosive protection without changing armor class.' },
+  { name:'AF-52 Lockdown',              weight:'Heavy',  passive:'Advanced Filtration',         tags:['gas','defense'],               desc:'Strong resistance to gas damage and gas-related effects.' },
+  { name:'CPR-80 Bulwark',              weight:'Heavy',  passive:'Concussive Padding, Reinforced', tags:['explosive','defense'],       desc:'Explosive resistance plus a further armor-rating boost.' },
+];
+
+
+// ═══════════════════════════════════════════════
+//  TAG INFERENCE / AUDIT ENGINE
+// ═══════════════════════════════════════════════
+
+const VALID_TAGS = new Set([
+  'at','chaff','support','stealth','mobility','close','melee','denial','defense',
+  'ballistic','explosive','laser','fire','arc','plasma','gas','stun'
+]);
+
+const SUPPORT_ARMOR_PASSIVES = new Set(['Med-Kit']);
+
+const TRAIT_TAG_RULES = {
+  'Med-Kit': ['support'],
+  'Engineering Kit': ['explosive'],
+  'Fortified': ['explosive','denial','defense'],
+  'Servo-Assisted': ['explosive'],
+  'Scout': ['stealth','mobility'],
+  'Reduced Signature': ['stealth','mobility'],
+  'Electrical Conduit': ['arc'],
+  'Inflammable': ['fire'],
+  'Acclimated': ['fire','gas','arc'],
+  'Peak Physique': ['melee','close'],
+  'Rock Solid': ['melee','stun','defense'],
+  'Siege-Ready': ['chaff','ballistic','defense'],
+  'Ballistic Padding': ['ballistic','defense'],
+  'Extra Padding': ['defense'],
+  'Gunslinger': ['ballistic','close'],
+  'Integrated Explosives': ['explosive'],
+  'Advanced Filtration': ['gas'],
+  'Concussive Padding': ['stun','defense'],
+  'Concussive Padding, Hazmat': ['explosive','gas','defense'],
+  'Concussive Padding, Grenadier': ['explosive','defense'],
+  'Concussive Padding, Reinforced': ['explosive','defense'],
+  'Adreno-Defibrillator': ['defense'],
+  'Supplementary Adrenaline': ['close'],
+  'Reinforced Epaulettes': ['defense'],
+  'Democracy Protects': ['defense'],
+  'Feet First': ['mobility'],
+  'Desert Stormer': ['fire','mobility'],
+  'Rounds Reload': ['mobility'],
+  'Heavy Armor Penetration': ['at'],
+  'Medium Armor Penetration': ['at'],
+  'Stagger': ['stun'],
+  'Knockback': ['stun'],
+  'Burn': ['fire'],
+  'Arc Damage': ['arc'],
+  'Gas Damage': ['gas'],
+  'Explosive': ['explosive'],
+  'Minefield': ['defense','denial'],
+  'Emplacement': ['defense'],
+  'Sentry': ['defense'],
+};
+
+const ROUNDS_RELOAD_NAMES = new Set([
+  'SG-8 Punisher','SG-8S Slugger','SG-20 Halt','SG-22 Bushwhacker',
+  'P-4 Senator','GP-20 Ultimatum','M90A Shotgun'
+]);
+
+const ROLE_TAG_LIST = ['at','chaff','support','stealth','mobility','close','denial','defense','melee'];
+const THEME_TAG_LIST = ['ballistic','explosive','laser','fire','arc','plasma','gas','stun','melee'];
+
+function pushUnique(arr, value) {
+  if (value && !arr.includes(value)) arr.push(value);
+}
+
+function ensureTraits(item, category) {
+  if (!item.traits) item.traits = [];
+  if (category === 'armor' && item.passive) pushUnique(item.traits, item.passive);
+
+  const hay = `${item.name || ''} ${item.desc || ''}`.toLowerCase();
+
+  if (ROUNDS_RELOAD_NAMES.has(item.name) || /rounds reload|pump-action|break-action|break-open|revolver/.test(hay)) {
+    pushUnique(item.traits, 'Rounds Reload');
+  }
+  if (/heavy armor penetration|heaviest armor|anti-tank|heavy targets|armor penetration/.test(hay)) {
+    pushUnique(item.traits, 'Heavy Armor Penetration');
+  } else if (/medium armor penetration|medium armor/.test(hay)) {
+    pushUnique(item.traits, 'Medium Armor Penetration');
+  }
+  if (/stagger|stuns|stun|knockback/.test(hay)) pushUnique(item.traits, 'Stagger');
+  if (/burn|incendiary|flame|napalm|thermite|fire/.test(hay)) pushUnique(item.traits, 'Burn');
+  if (/arc|electric|tesla/.test(hay)) pushUnique(item.traits, 'Arc Damage');
+  if (/gas|toxic|sterilizer/.test(hay)) pushUnique(item.traits, 'Gas Damage');
+  if (/explosive|grenade|barrage|rocket|bomb|mine|hellbomb/.test(hay)) pushUnique(item.traits, 'Explosive');
+  if (/sentry/.test(hay)) pushUnique(item.traits, 'Sentry');
+  if (/mine/.test(hay)) pushUnique(item.traits, 'Minefield');
+  if (/emplacement|battlement|relay/.test(hay)) pushUnique(item.traits, 'Emplacement');
+}
+
+function clampStat(value, min = 0, max = 5) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function getBaseTags(item) {
+  return Array.isArray(item.baseTags) ? item.baseTags : (Array.isArray(item.tags) ? item.tags : []);
+}
+
+function buildItemStats(item, category) {
+  const hay = `${item.name || ''} ${item.desc || ''} ${item.passive || ''}`.toLowerCase();
+  const baseTags = getBaseTags(item);
+  const traits = item.traits || [];
+
+  let penetration = 1;
+  if (traits.includes('Heavy Armor Penetration') || /anti-tank ii|heaviest armor|heavy warhead|railcannon|500kg|heavy targets/.test(hay)) penetration = 5;
+  else if (baseTags.includes('at') || /anti-tank|heavy armor|heavy armor penetration|tank|fabricator|charger|bile titan/.test(hay)) penetration = 4;
+  else if (traits.includes('Medium Armor Penetration') || /medium armor|autocannon|slug|battle rifle/.test(hay)) penetration = 3;
+  else if (/light armor penetration|penetrator/.test(hay)) penetration = 2;
+
+  let rateOfFire = 1;
+  if (/minigun|gatling|high fire rate|full-auto|automatic suppression|sustained|continuous|beam|flamethrower|spray/.test(hay)) rateOfFire = 5;
+  else if (/burst|rapid-fire|smg|assault rifle|machine gun|carbine|guard dog/.test(hay)) rateOfFire = 4;
+  else if (/semi-auto|marksman|battle rifle|revolver|shotgun/.test(hay)) rateOfFire = 2;
+  if (ROUNDS_RELOAD_NAMES.has(item.name) || /bolt-action|pump-action|break-action|break-open/.test(hay)) rateOfFire = 1;
+
+  let areaCoverage = 0;
+  if (/barrage|cluster|carpet|wide area|airburst|minefield|gas cloud|burning zone|cone|splash|blast radius|aoe|area denial/.test(hay)) areaCoverage += 3;
+  if (baseTags.includes('explosive') || baseTags.includes('fire') || baseTags.includes('gas')) areaCoverage += 1;
+  if (baseTags.includes('arc')) areaCoverage += 2;
+  if (/shotgun|pellet|chains lightning|chain-lightning|chain/.test(hay)) areaCoverage += 1;
+  areaCoverage = clampStat(areaCoverage);
+
+  let multiTarget = 0;
+  if (/clustered enemies|groups|swarms|horde|crowd|multiple targets|chains|carpet|cone/.test(hay)) multiTarget += 2;
+  if (baseTags.includes('arc') || baseTags.includes('explosive') || baseTags.includes('fire') || baseTags.includes('gas')) multiTarget += 1;
+  if (/shotgun|machine gun|minigun|gatling|flamethrower/.test(hay)) multiTarget += 1;
+  multiTarget = clampStat(multiTarget);
+
+  let stagger = 0;
+  if (traits.includes('Stagger') || baseTags.includes('stun')) stagger += 3;
+  if (/stagger|stuns|concussive|halt|knockback|immobilizes|slow/.test(hay)) stagger += 2;
+  if (/mortar|rocket|cannon|hammer|lance/.test(hay)) stagger += 1;
+  stagger = clampStat(stagger);
+
+  let pushForce = 0;
+  if (/knockback|push|blasts?|hammer|shotgun|rocket|explosive/.test(hay)) pushForce += 2;
+  if (baseTags.includes('explosive')) pushForce += 1;
+  pushForce = clampStat(pushForce);
+
+  let demolition = 0;
+  if (item.closer) demolition += 3;
+  if (/fabricator|bug holes|structures|hellbomb|demolish|breaching|objective/.test(hay)) demolition += 2;
+  if (baseTags.includes('explosive')) demolition += 1;
+  demolition = clampStat(demolition);
+
+  let damage = 1;
+  if (/massive|devastating|obliterate|high damage|heavy warhead|railcannon|500kg/.test(hay)) damage = 5;
+  else if (/hard-hitting|powerful|strong|autocannon|grenade launcher|rocket|plasma cannon/.test(hay)) damage = 4;
+  else if (/reliable|standard|compact|sidearm|backup/.test(hay)) damage = 2;
+
+  let durableDamage = 0;
+  if (penetration >= 5) durableDamage = 5;
+  else if (penetration === 4) durableDamage = 4;
+  else if (penetration === 3) durableDamage = 3;
+  else durableDamage = 1;
+  if (/durable|armor|tank|heavy/.test(hay)) durableDamage = clampStat(durableDamage + 1);
+
+  let supportValue = 0;
+  if (baseTags.includes('support')) supportValue += 2;
+  if (/shield|resupply|stim|uav|recon|buffs nearby allies|extract/.test(hay)) supportValue += 2;
+  if (/smoke/.test(hay)) supportValue += 1;
+  supportValue = clampStat(supportValue);
+
+  let mobilityValue = 0;
+  if (baseTags.includes('mobility')) mobilityValue += 2;
+  if (/jump|hover|teleport|fast recon|rapid movement|sprinting|reposition/.test(hay)) mobilityValue += 2;
+  mobilityValue = clampStat(mobilityValue);
+
+  let stealthValue = 0;
+  if (baseTags.includes('stealth')) stealthValue += 2;
+  if (/smoke|silent|suppressed|detection range|movement noise|disengagement/.test(hay)) stealthValue += 2;
+  stealthValue = clampStat(stealthValue);
+
+  let defenseValue = 0;
+  if (baseTags.includes('defense')) defenseValue += 2;
+  if (/shield|sentry|emplacement|mine|defense|fortified|resistance|armor rating/.test(hay)) defenseValue += 2;
+  defenseValue = clampStat(defenseValue);
+
+  const sustainedFire = rateOfFire >= 4 || /continuous|beam|flamethrower|sustained/.test(hay);
+  const multiTargetCapable = multiTarget >= 3 || areaCoverage >= 3;
+
+  return {
+    penetration,
+    penetrationClass: penetration >= 5 ? 'anti_tank_ii' : penetration >= 4 ? 'anti_tank' : penetration >= 3 ? 'medium' : penetration >= 2 ? 'light' : 'none',
+    damage,
+    durableDamage,
+    rateOfFire,
+    areaCoverage,
+    multiTarget,
+    staggerForce: stagger,
+    pushForce,
+    demolitionForce: demolition,
+    supportValue,
+    mobilityValue,
+    stealthValue,
+    defenseValue,
+    sustainedFire,
+    multiTargetCapable,
+  };
+}
+
+function computeChaffScore(item, stats) {
+  const hay = `${item.name || ''} ${item.desc || ''}`.toLowerCase();
+  let score = 0;
+  score += stats.rateOfFire >= 4 ? 3 : 0;
+  score += stats.areaCoverage >= 3 ? 3 : 0;
+  score += stats.multiTarget >= 3 ? 3 : 0;
+  score += stats.sustainedFire ? 2 : 0;
+  score += stats.staggerForce >= 3 ? 1 : 0;
+  score += /shotgun|machine gun|minigun|flamethrower|gatling|arc|gas/.test(hay) ? 2 : 0;
+  score -= stats.penetration >= 4 ? 2 : 0;
+  score -= /bolt-action|marksman|sniper|precision|revolver|single-shot/.test(hay) ? 3 : 0;
+  score -= (stats.rateOfFire <= 1 && stats.areaCoverage <= 1) ? 2 : 0;
+  return score;
+}
+
+function deriveRolesFromStats(item, category, stats) {
+  const roles = new Set();
+  if (stats.penetration >= 4 || stats.demolitionForce >= 4) roles.add('at');
+  if (computeChaffScore(item, stats) >= 6) roles.add('chaff');
+  if (stats.supportValue >= 2) roles.add('support');
+  if (stats.stealthValue >= 2) roles.add('stealth');
+  if (stats.mobilityValue >= 2 || (category === 'armor' && item.weight === 'Light')) roles.add('mobility');
+  if ((getBaseTags(item).includes('melee')) || /melee|hammer|saber|lance/.test(`${item.name || ''} ${item.desc || ''}`.toLowerCase())) roles.add('melee');
+  if (stats.areaCoverage >= 3 || stats.staggerForce >= 3 || getBaseTags(item).includes('stun')) roles.add('denial');
+  if (stats.defenseValue >= 2 || (category === 'armor' && item.weight === 'Heavy')) roles.add('defense');
+  if (/close|shotgun|flamethrower|saber|lance|hammer|melee|jump pack/.test(`${item.name || ''} ${item.desc || ''}`.toLowerCase())) roles.add('close');
+  return [...roles];
+}
+
+function deriveThemes(item, stats) {
+  const baseTags = getBaseTags(item);
+  const themes = new Set(baseTags.filter(tag => THEME_TAG_LIST.includes(tag)));
+  if (stats.penetration >= 2 && /rifle|smg|shotgun|machine gun|minigun|pistol|revolver|marksman|autocannon/.test(`${item.name || ''} ${item.desc || ''}`.toLowerCase())) themes.add('ballistic');
+  return [...themes];
+}
+
+function getDerivedMatchTags(item) {
+  return item?.derived?.matchTags || item?.tags || [];
+}
+
+function suggestTags(item, category) {
+  const suggested = new Set();
+  ensureTraits(item, category);
+  const stats = buildItemStats(item, category);
+  const roles = deriveRolesFromStats(item, category, stats);
+  const themes = deriveThemes(item, stats);
+  item.stats = stats;
+  item.derived = {
+    roles,
+    themes,
+    chaffScore: computeChaffScore(item, stats),
+    antiTankTier: stats.penetration >= 5 ? 2 : stats.penetration >= 4 ? 1 : 0,
+    matchTags: [...new Set([...roles, ...themes])],
+  };
+
+  for (const trait of (item.traits || [])) {
+    const mapped = TRAIT_TAG_RULES[trait];
+    if (mapped) mapped.forEach(tag => suggested.add(tag));
+  }
+  roles.forEach(tag => suggested.add(tag));
+  themes.forEach(tag => suggested.add(tag));
+  if (Array.isArray(item.forceTags)) item.forceTags.forEach(tag => suggested.add(tag));
+  if (Array.isArray(item.blockTags)) item.blockTags.forEach(tag => suggested.delete(tag));
+  return [...suggested].filter(tag => VALID_TAGS.has(tag));
+}
+
+function normalizeDatabaseTags() {
+  for (const [category, items] of Object.entries(DB)) {
+    for (const item of items) {
+      const original = Array.isArray(item.tags) ? item.tags.slice() : [];
+      item.baseTags = original.slice();
+      item.tags = suggestTags(item, category);
+
+      if (category === 'armor' && item.tags.includes('support') && !SUPPORT_ARMOR_PASSIVES.has(item.passive)) {
+        item.tags = item.tags.filter(tag => tag !== 'support');
+      }
+
+      item._audit = {
+        originalTags: original,
+        suggestedTags: item.tags.slice(),
+      };
+    }
+  }
+}
+
+function runAdvancedAudit() {
+  const issues = [];
+  const counts = {};
+  const allItems = Object.values(DB).flat();
+
+  for (const [category, items] of Object.entries(DB)) {
+    for (const item of items) {
+      for (const tag of (item.tags || [])) counts[tag] = (counts[tag] || 0) + 1;
+      const missing = (item._audit?.suggestedTags || []).filter(t => !(item._audit?.originalTags || []).includes(t));
+      const removed = (item._audit?.originalTags || []).filter(t => !(item._audit?.suggestedTags || []).includes(t));
+
+      if (missing.length || removed.length) {
+        issues.push({ item: item.name, category, add: missing, remove: removed });
+      }
+
+      if (category === 'armor' && (item._audit?.originalTags || []).includes('support') && !item.tags.includes('support')) {
+        issues.push({ item: item.name, category, note: 'Removed support tag from armor because it is not an extra-stim passive.' });
+      }
+    }
+  }
+
+  const overused = Object.entries(counts)
+    .filter(([tag, count]) => count / allItems.length > 0.35)
+    .map(([tag, count]) => `${tag}: ${count}/${allItems.length}`);
+
+  return { issues, counts, overused };
+}
+
+let latestAuditReport = null;
+
+function renderDebugInfo() {
+  latestAuditReport = runAdvancedAudit();
+  const debugEl = document.getElementById('debugOutput');
+  if (!debugEl) return;
+
+  const activeRoles = [...activeBuildTags].join(', ') || '(none)';
+  const activeThemes = [...activeThemeTags].join(', ') || '(none)';
+  const buildSummary = summarizeTags([...currentBuild, ...currentLoadout, ...(currentBooster ? [currentBooster] : [])]);
+
+  let out = '';
+  out += `Active Build Role(s): ${activeRoles}\n`;
+  out += `Active Weapon Theme(s): ${activeThemes}\n\n`;
+
+  out += 'Current Build Tag Counts:\n';
+  const sortedSummary = Object.entries(buildSummary).sort((a,b) => a[0].localeCompare(b[0]));
+  if (sortedSummary.length) {
+    for (const [tag, count] of sortedSummary) out += `  ${tag}: ${count}\n`;
+  } else {
+    out += '  (generate a build to populate counts)\n';
+  }
+
+  out += '\nAudit: tags added/removed by suggestion engine\n';
+  const issues = latestAuditReport.issues.slice(0, 40);
+  if (!issues.length) {
+    out += '  No tag adjustments were needed.\n';
+  } else {
+    for (const issue of issues) {
+      out += `  ${issue.item} [${issue.category}]`;
+      if (issue.add?.length) out += ` | + ${issue.add.join(', ')}`;
+      if (issue.remove?.length) out += ` | - ${issue.remove.join(', ')}`;
+      if (issue.note) out += ` | ${issue.note}`;
+      out += '\n';
+    }
+    if (latestAuditReport.issues.length > issues.length) {
+      out += `  ... ${latestAuditReport.issues.length - issues.length} more issue(s)\n`;
+    }
+  }
+
+  out += '\nOverused Tags Snapshot:\n';
+  if (!latestAuditReport.overused.length) {
+    out += '  None above 35% of all items.\n';
+  } else {
+    for (const line of latestAuditReport.overused) out += `  ${line}\n`;
+  }
+
+  debugEl.textContent = out;
+}
+
+normalizeDatabaseTags();
+
+
+// ═══════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════
+
+let activeBuildTags = new Set(['any']);
+let activeThemeTags = new Set(['ballistic']);
+let lockedSlots   = {};   // stratagem slot locks { 0-3: entry }
+let lockedLoadout = {};   // loadout locks { 0:primary 1:secondary 2:grenade 3:armor }
+let lockedBooster = false;
+let currentBuild   = [];
+let currentLoadout = [];
+let currentBooster = null;
+
+// ═══════════════════════════════════════════════
+//  PILL INTERACTION
+// ═══════════════════════════════════════════════
+
+document.getElementById('buildPills').addEventListener('click', e => {
+  const pill = e.target.closest('.pill');
+  if (!pill) return;
+  const build = pill.dataset.build;
+  const warningEl = document.getElementById('warning');
+  warningEl.classList.remove('show');
+
+  activeBuildTags = new Set([build]);
+
+  document.querySelectorAll('#buildPills .pill').forEach(p => {
+    p.classList.toggle('active', p.dataset.build === build);
+  });
+});
+
+document.getElementById('themeOptions').addEventListener('change', e => {
+  const input = e.target.closest('input[name="theme"]');
+  if (!input) return;
+  const warningEl = document.getElementById('warning');
+  warningEl.classList.remove('show');
+  const checked = [...document.querySelectorAll('input[name="theme"]:checked')];
+  if (checked.length > 2) {
+    input.checked = false;
+    warningEl.textContent = 'You can select up to two weapon themes at a time.';
+    warningEl.classList.add('show');
+  }
+  const finalChecked = [...document.querySelectorAll('input[name="theme"]:checked')];
+  if (!finalChecked.length) {
+    const ballistic = document.querySelector('input[name="theme"][value="ballistic"]');
+    if (ballistic) ballistic.checked = true;
+  }
+  activeThemeTags = new Set([...document.querySelectorAll('input[name="theme"]:checked')].map(i => i.value));
+});
+
+// ═══════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════
+
+const ROLE_TAGS = new Set([...ROLE_TAG_LIST, 'balanced']);
+const THEME_TAGS = new Set(THEME_TAG_LIST);
+
+const BUILD_RULES = {
+  at:        { required:['at'], minTotal:2, minStratagems:1 },
+  chaff:     { required:['chaff'], minTotal:2, minStratagems:1 },
+  support:   { required:['support'], minTotal:2, minStratagems:1 },
+  stealth:   { required:['stealth','support'], minTotal:2, minStratagems:1 },
+  mobility:  { required:['mobility','close'], minTotal:2, minStratagems:1 },
+  close:     { required:['close'], minTotal:2, minStratagems:1 },
+  denial:    { required:['denial'], minTotal:2, minStratagems:1 },
+  defense:   { required:['defense'], minTotal:2, minStratagems:1 },
+  ballistic: { required:['ballistic'], minTotal:2, minStratagems:1 },
+  explosive: { required:['explosive'], minTotal:2, minStratagems:1 },
+  laser:     { required:['laser'], minTotal:2, minStratagems:1 },
+  fire:      { required:['fire'], minTotal:2, minStratagems:1 },
+  arc:       { required:['arc'], minTotal:2, minStratagems:1 },
+  plasma:    { required:['plasma'], minTotal:2, minStratagems:1 },
+  gas:       { required:['gas'], minTotal:2, minStratagems:1 },
+  melee:     { required:['melee'], minTotal:2, minStratagems:1 },
+};
+
+// These preferences shape the weighted picker. Preferred traits get a bonus;
+// discouraged traits get a penalty, which helps avoid obvious anti-synergies.
+const BUILD_PREFERENCES = {
+  balanced: {
+    preferredArmorWeights: ['Medium'],
+  },
+  at: {
+    preferredTags: ['at','explosive'],
+    discouragedTags: ['stealth'],
+    preferredArmorWeights: ['Heavy','Medium'],
+    discouragedArmorWeights: ['Light'],
+  },
+  chaff: {
+    preferredTags: ['chaff'],
+    discouragedTags: ['stealth'],
+  },
+  support: {
+    preferredTags: ['support'],
+    discouragedTags: ['melee'],
+  },
+  stealth: {
+    preferredTags: ['stealth','mobility','support'],
+    discouragedTags: ['explosive','fire','defense'],
+    preferredArmorWeights: ['Light'],
+    discouragedArmorWeights: ['Heavy'],
+  },
+  mobility: {
+    preferredTags: ['mobility','close','stealth'],
+    discouragedTags: ['defense'],
+    preferredArmorWeights: ['Light','Medium'],
+    discouragedArmorWeights: ['Heavy'],
+  },
+  close: {
+    preferredTags: ['close','melee'],
+    discouragedTags: ['stealth'],
+  },
+  denial: {
+    preferredTags: ['denial','explosive','defense'],
+    preferredArmorWeights: ['Heavy','Medium'],
+    discouragedArmorWeights: ['Light'],
+  },
+  defense: {
+    preferredTags: ['defense','denial','support'],
+    discouragedTags: ['mobility','stealth'],
+    preferredArmorWeights: ['Heavy','Medium'],
+    discouragedArmorWeights: ['Light'],
+  },
+};
+
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function getActiveRoleTags() {
+  return [...activeBuildTags].filter(t => ROLE_TAGS.has(t));
+}
+
+function getActiveThemeTags() {
+  return [...activeThemeTags].filter(t => THEME_TAGS.has(t));
+}
+
+function tagMatch(stratTags = []) {
+  if (activeBuildTags.has('any')) return true;
+  const roles = getActiveRoleTags();
+  const themes = getActiveThemeTags();
+  if (!roles.length && !themes.length) return true;
+  const roleHit = !roles.length || stratTags.some(t => roles.includes(t));
+  const themeHit = !themes.length || stratTags.some(t => themes.includes(t));
+  return roleHit && themeHit;
+}
+
+function isEnabled(item) {
+  return !disabledItems.has(item.name);
+}
+
+function filtered(pool, fallback) {
+  const enabled = pool.filter(s => isEnabled(s));
+  const f = enabled.filter(s => tagMatch(getDerivedMatchTags(s)));
+  if (f.length) return f;
+  if (enabled.length) return enabled;
+  const fb = (fallback ?? pool).filter(s => tagMatch(getDerivedMatchTags(s)));
+  return fb.length ? fb : (fallback ?? pool);
+}
+
+function countTagMatches(item, tags) {
+  const matchTags = getDerivedMatchTags(item);
+  if (!item || !matchTags || !tags || !tags.length) return 0;
+  return matchTags.filter(t => tags.includes(t)).length;
+}
+
+function getArmorDisplayName(item) {
+  return item.name;
+}
+
+function getArmorSelectionPool() {
+  const enabled = DB.armor.filter(s => isEnabled(s));
+  return enabled.length ? enabled : DB.armor;
+}
+
+function scoreItem(item, slotType = 'generic') {
+  if (!item) return -999;
+  if (activeBuildTags.has('any')) return 1;
+  let score = 0;
+  const stats = item.stats || {};
+  const roles = getActiveRoleTags();
+  const themes = getActiveThemeTags();
+  score += countTagMatches(item, roles) * 5;
+  score += countTagMatches(item, themes) * 6;
+
+  for (const role of roles) {
+    const pref = BUILD_PREFERENCES[role];
+    if (!pref) continue;
+
+    score += countTagMatches(item, pref.preferredTags || []) * 3;
+    score -= countTagMatches(item, pref.discouragedTags || []) * 4;
+
+    if (slotType === 'armor') {
+      if ((pref.preferredArmorWeights || []).includes(item.weight)) score += 6;
+      if ((pref.discouragedArmorWeights || []).includes(item.weight)) score -= 10;
+    }
+  }
+
+  if (activeBuildTags.has('balanced')) {
+    if (slotType === 'support' && DB.support.includes(item)) score += 8;
+    if (slotType === 'backpack' && DB.backpack.includes(item)) score += 8;
+    if (getDerivedMatchTags(item).includes('at')) score += 6;
+    if (getDerivedMatchTags(item).includes('support')) score += 2;
+  }
+
+  if (activeBuildTags.has('defense')) {
+    if (getDerivedMatchTags(item).includes('defense')) score += 8;
+    if (getDerivedMatchTags(item).includes('denial')) score += 3;
+  }
+
+  if (activeBuildTags.has('at')) {
+    score += (stats.penetration || 0) * 2;
+    score += (stats.durableDamage || 0);
+    score += (stats.demolitionForce || 0);
+  }
+
+  if (activeBuildTags.has('chaff')) {
+    score += (item.derived?.chaffScore || 0) * 2;
+    score += (stats.multiTarget || 0);
+    score += (stats.areaCoverage || 0);
+    score += (stats.rateOfFire || 0);
+    score -= Math.max(0, (stats.penetration || 0) - 3);
+  }
+
+  if (activeBuildTags.has('support')) {
+    score += (stats.supportValue || 0) * 2;
+  }
+
+  if (activeBuildTags.has('stealth')) {
+    score += (stats.stealthValue || 0) * 2;
+  }
+
+  if (activeBuildTags.has('mobility')) {
+    score += (stats.mobilityValue || 0) * 2;
+  }
+
+  if (activeBuildTags.has('denial')) {
+    score += (stats.areaCoverage || 0) + (stats.staggerForce || 0);
+  }
+
+  if (activeBuildTags.has('close')) {
+    score += /shotgun|flamethrower|melee|lance|saber|hammer|shield/.test(`${item.name || ''} ${item.desc || ''}`.toLowerCase()) ? 4 : 0;
+  }
+
+  if (activeBuildTags.has('defense')) {
+    score += (stats.defenseValue || 0) * 2;
+    score += (stats.staggerForce || 0);
+  }
+
+  if (slotType === 'armor') {
+    if ((activeBuildTags.has('stealth') || activeBuildTags.has('mobility')) && item.weight === 'Light') score += 2;
+    if ((activeBuildTags.has('at') || activeBuildTags.has('denial') || activeBuildTags.has('defense')) && item.weight === 'Heavy') score += 1;
+    if (activeBuildTags.has('balanced') && item.weight === 'Medium') score += 1;
+  }
+  if (slotType === 'support' || slotType === 'vehicle' || slotType === 'filler' || slotType === 'primary' || slotType === 'grenade') {
+    if (item.closer && (activeBuildTags.has('at') || activeBuildTags.has('explosive') || activeBuildTags.has('plasma'))) score += 1;
+  }
+  if (themes.includes('stun')) score += (stats.staggerForce || 0) * 3;
+  return score;
+}
+
+function pickScored(pool, slotType = 'generic', usedNames = new Set()) {
+  if (!pool || !pool.length) return null;
+  let candidates = pool.filter(s => !usedNames.has(s.name));
+  if (!candidates.length) candidates = pool.slice();
+  candidates = filtered(candidates, pool);
+  if (!candidates.length) candidates = pool.slice();
+  if (!candidates.length) return null;
+  const scored = candidates.map(item => ({ item, score: scoreItem(item, slotType) }));
+  scored.sort((a, b) => b.score - a.score);
+  const top = scored[0]?.score ?? 0;
+  const band = scored.filter(x => x.score >= top - 2);
+  const items = (band.length ? band : scored).map(x => x.item).filter(Boolean);
+  return items.length ? pick(items) : null;
+}
+
+function getVehicleSetting() {
+  return document.querySelector('input[name="vehicle"]:checked')?.value || 'auto';
+}
+
+function sentryBucket(item) {
+  const name = item.name || '';
+  if (/Mine/i.test(name) || name.startsWith('MD-')) return 'mines';
+  if (/Emplacement|Battlement|Relay/i.test(name) || name.startsWith('E/')) return 'emplacements';
+  return 'turrets';
+}
+
+function getSelectedFillerPools() {
+  const checked = [...document.querySelectorAll('input[name="fillerPool"]:checked')].map(i => i.value);
+  return checked.length ? checked : ['orbitals','air','turrets','mines','emplacements'];
+}
+
+function getFillerPool() {
+  const selected = new Set(getSelectedFillerPools());
+  let base = [];
+  if (selected.has('orbitals')) base.push(...DB.orbital);
+  if (selected.has('air')) base.push(...DB.eagle);
+  if (selected.has('turrets')) base.push(...DB.sentry.filter(s => sentryBucket(s) === 'turrets'));
+  if (selected.has('mines')) base.push(...DB.sentry.filter(s => sentryBucket(s) === 'mines'));
+  if (selected.has('emplacements')) base.push(...DB.sentry.filter(s => sentryBucket(s) === 'emplacements'));
+  if (!base.length) base = [...DB.orbital, ...DB.eagle, ...DB.sentry];
+  const enabled = base.filter(s => isEnabled(s));
+  return enabled.length ? enabled : base;
+}
+
+function getSupportPool() {
+  const enabled = DB.support.filter(s => isEnabled(s));
+  return enabled.length ? enabled : DB.support;
+}
+
+function getBackpackPool() {
+  const enabled = DB.backpack.filter(s => isEnabled(s));
+  return enabled.length ? enabled : DB.backpack;
+}
+
+function getVehiclePool() {
+  const enabled = DB.vehicle.filter(s => isEnabled(s));
+  return enabled.length ? enabled : DB.vehicle;
+}
+
+function getBoosterPool() {
+  const enabled = DB.booster.filter(s => isEnabled(s));
+  return enabled.length ? enabled : DB.booster;
+}
+
+function getAnyPool() {
+  const all = [...getSupportPool(), ...getBackpackPool(), ...getVehiclePool(), ...getFillerPool()];
+  return all.length ? all : [...DB.support, ...DB.backpack, ...DB.vehicle, ...DB.orbital, ...DB.eagle, ...DB.sentry];
+}
+
+function classifyStratagem(stratagem) {
+  if (DB.support.includes(stratagem)) return 'support';
+  if (DB.backpack.includes(stratagem)) return 'backpack';
+  if (DB.vehicle.includes(stratagem)) return 'vehicle';
+  if (DB.orbital.includes(stratagem)) return 'orbital';
+  if (DB.eagle.includes(stratagem)) return 'eagle';
+  return 'sentry';
+}
+
+function makeEmptySlot(slotName, type, desc) {
+  return {
+    slot: slotName,
+    type,
+    empty: true,
+    stratagem: { name: 'None', tags: [], desc }
+  };
+}
+
+function makeBuiltinBackpack(weapon) {
+  return {
+    slot: 'Stratagem 2',
+    type: 'backpack',
+    builtin: true,
+    stratagem: {
+      name: '[Built-in] ' + weapon.name + ' Pack',
+      tags: weapon.tags || [],
+      desc: 'This support weapon includes its own backpack — the slot is occupied.'
+    }
+  };
+}
+
+function summarizeTags(entries) {
+  const counts = {};
+  for (const e of entries) {
+    if (!e || !e.stratagem) continue;
+    for (const tag of getDerivedMatchTags(e.stratagem)) counts[tag] = (counts[tag] || 0) + 1;
+  }
+  return counts;
+}
+
+function summarizeStratagemTags(entries) {
+  const counts = {};
+  for (const e of entries) {
+    if (!e || !e.stratagem) continue;
+    for (const tag of getDerivedMatchTags(e.stratagem)) counts[tag] = (counts[tag] || 0) + 1;
+  }
+  return counts;
+}
+
+function buildSatisfiesRules(build, loadout, booster) {
+  if (activeBuildTags.has('any')) return true;
+  const total = summarizeTags([...build, ...loadout, ...(booster ? [booster] : [])]);
+  const strat = summarizeStratagemTags(build);
+
+  if (activeBuildTags.has('balanced')) {
+    const hasSupportWeapon = build.some(e => e && e.type === 'support' && !e.empty && !e.builtin);
+    const hasBackpackSlot = build.some(e => e && e.type === 'backpack');
+    const hasAntiTank = ((total['at'] || 0) > 0) || build.some(e => getDerivedMatchTags(e?.stratagem).includes('at'));
+    if (!hasSupportWeapon || !hasBackpackSlot || !hasAntiTank) return false;
+  }
+
+  for (const tag of [...activeBuildTags, ...activeThemeTags]) {
+    if (tag === 'balanced') continue;
+    const rule = BUILD_RULES[tag];
+    if (!rule) continue;
+    const totalHits = rule.required.reduce((sum, t) => sum + (total[t] || 0), 0);
+    const stratHits = rule.required.reduce((sum, t) => sum + (strat[t] || 0), 0);
+    if (totalHits < rule.minTotal) return false;
+    if (stratHits < rule.minStratagems) return false;
+  }
+  return true;
+}
+
+function generateBuildOnce() {
+  const isAnyBuild = activeBuildTags.has('any');
+  const usedNames = new Set();
+  const build = [];
+  const vehicleSetting = getVehicleSetting();
+  let vehicleUsed = false;
+  let sentryUsed = false;
+
+  function fullStratagemPool() {
+    return [
+      ...getSupportPool(),
+      ...getBackpackPool(),
+      ...getVehiclePool(),
+      ...getFillerPool()
+    ].filter(Boolean);
+  }
+
+  function emergencyPool() {
+    return [
+      ...DB.support,
+      ...DB.backpack,
+      ...DB.vehicle,
+      ...DB.orbital,
+      ...DB.eagle,
+      ...DB.sentry
+    ].filter(Boolean);
+  }
+
+  function pickUniqueStratagem(preferredPool, slotType = 'filler', extraFilter = null) {
+    let pool = (preferredPool || []).filter(Boolean);
+
+    if (extraFilter) pool = pool.filter(extraFilter);
+    pool = pool.filter(item => item && !usedNames.has(item.name));
+
+    let chosen = pickScored(pool, slotType, usedNames);
+
+    if (!chosen) {
+      let backup = fullStratagemPool().filter(item => !usedNames.has(item.name));
+      if (extraFilter) {
+        const filteredBackup = backup.filter(extraFilter);
+        if (filteredBackup.length) backup = filteredBackup;
+      }
+      chosen = pickScored(backup, slotType, usedNames);
+    }
+
+    if (!chosen) {
+      let backup = emergencyPool().filter(item => !usedNames.has(item.name));
+      if (extraFilter) {
+        const filteredBackup = backup.filter(extraFilter);
+        if (filteredBackup.length) backup = filteredBackup;
+      }
+      chosen = backup.length ? pick(backup) : null;
+    }
+
+    return chosen;
+  }
+
+  function pushRealStratagem(slotLabel, chosen) {
+    if (!chosen) {
+      chosen = {
+        name: 'Orbital Precision Strike',
+        tags: ['at'],
+        desc: 'Fallback selection because no valid stratagem was available.'
+      };
+    }
+    usedNames.add(chosen.name);
+    const typeLabel = classifyStratagem(chosen);
+    if (typeLabel === 'vehicle') vehicleUsed = true;
+    if (typeLabel === 'sentry') sentryUsed = true;
+    build.push({ slot: slotLabel, type: typeLabel, stratagem: chosen });
+  }
+
+  if (isAnyBuild) {
+    for (let idx = 0; idx < 4; idx++) {
+      if (lockedSlots[idx]) {
+        build.push(lockedSlots[idx]);
+        if (!lockedSlots[idx].empty && !lockedSlots[idx].builtin && lockedSlots[idx].stratagem) {
+          usedNames.add(lockedSlots[idx].stratagem.name);
+        }
+        if (lockedSlots[idx].type === 'vehicle') vehicleUsed = true;
+        if (lockedSlots[idx].type === 'sentry') sentryUsed = true;
+        continue;
+      }
+
+      const chosen = pickUniqueStratagem(getAnyPool(), 'filler');
+      pushRealStratagem('Stratagem ' + (idx + 1), chosen);
+    }
+  } else {
+    const forceBalancedSupport = activeBuildTags.has('balanced');
+
+    // Stratagem 1: prefer a support weapon, but never leave blank
+    if (lockedSlots[0]) {
+      build.push(lockedSlots[0]);
+      if (!lockedSlots[0].empty && !lockedSlots[0].builtin && lockedSlots[0].stratagem) {
+        usedNames.add(lockedSlots[0].stratagem.name);
+      }
+      if (lockedSlots[0].type === 'vehicle') vehicleUsed = true;
+      if (lockedSlots[0].type === 'sentry') sentryUsed = true;
+    } else {
+      let chosen = null;
+      if (forceBalancedSupport || Math.random() < 0.55) {
+        chosen = pickUniqueStratagem(getSupportPool(), 'support');
+      }
+      if (!chosen) {
+        chosen = pickUniqueStratagem(fullStratagemPool(), 'filler');
+      }
+      pushRealStratagem('Stratagem 1', chosen);
+    }
+
+    // Stratagem 2: prefer backpack, unless the first support weapon already consumes it
+    if (lockedSlots[1]) {
+      build.push(lockedSlots[1]);
+      if (!lockedSlots[1].empty && !lockedSlots[1].builtin && lockedSlots[1].stratagem) {
+        usedNames.add(lockedSlots[1].stratagem.name);
+      }
+      if (lockedSlots[1].type === 'vehicle') vehicleUsed = true;
+      if (lockedSlots[1].type === 'sentry') sentryUsed = true;
+    } else {
+      const first = build[0]?.stratagem;
+      const firstType = build[0]?.type;
+
+      if (first && firstType === 'support' && first.hasBackpack) {
+        build.push(makeBuiltinBackpack(first));
+      } else {
+        let chosen = pickUniqueStratagem(getBackpackPool(), 'backpack');
+        if (!chosen) {
+          chosen = pickUniqueStratagem(fullStratagemPool(), 'filler');
+        }
+        pushRealStratagem('Stratagem 2', chosen);
+      }
+    }
+
+    // Stratagems 3-4: fillers / vehicles, unique only
+    for (let i = 2; i < 4; i++) {
+      if (lockedSlots[i]) {
+        build.push(lockedSlots[i]);
+        if (!lockedSlots[i].empty && !lockedSlots[i].builtin && lockedSlots[i].stratagem) {
+          usedNames.add(lockedSlots[i].stratagem.name);
+        }
+        if (lockedSlots[i].type === 'vehicle') vehicleUsed = true;
+        if (lockedSlots[i].type === 'sentry') sentryUsed = true;
+        continue;
+      }
+
+      let chosen = null;
+      const shouldTryVehicle =
+        !vehicleUsed &&
+        (vehicleSetting === 'force' || (vehicleSetting === 'auto' && Math.random() < 0.2));
+
+      if (shouldTryVehicle) {
+        chosen = pickUniqueStratagem(getVehiclePool(), 'vehicle');
+      }
+
+      if (!chosen) {
+        chosen = pickUniqueStratagem(
+          getFillerPool(),
+          'filler',
+          item => !(sentryUsed && DB.sentry.includes(item))
+        );
+      }
+
+      if (!chosen) {
+        chosen = pickUniqueStratagem(fullStratagemPool(), 'filler');
+      }
+
+      pushRealStratagem('Stratagem ' + (i + 1), chosen);
+    }
+  }
+
+  // Final safety pass: replace accidental duplicate real stratagems
+  const seen = new Set();
+  for (let i = 0; i < build.length; i++) {
+    const entry = build[i];
+    if (!entry || !entry.stratagem || entry.empty || entry.builtin) continue;
+
+    if (seen.has(entry.stratagem.name)) {
+      const replacement = pickUniqueStratagem(fullStratagemPool(), entry.type || 'filler');
+      if (replacement) {
+        build[i] = {
+          slot: entry.slot,
+          type: classifyStratagem(replacement),
+          stratagem: replacement
+        };
+      }
+    }
+
+    if (build[i] && build[i].stratagem && !build[i].builtin) {
+      seen.add(build[i].stratagem.name);
+    }
+  }
+
+  const loadout = [];
+  const lSlots = [
+    { key:0, pool:'primary',   slot:'Primary Weapon',       type:'primary'   },
+    { key:1, pool:'secondary', slot:'Secondary / Sidearm',  type:'secondary' },
+    { key:2, pool:'grenade',   slot:'Grenade',              type:'grenade'   },
+    { key:3, pool:'armor',     slot:'Armor',                type:'armor'     },
+  ];
+
+  for (const { key, pool, slot, type } of lSlots) {
+    if (lockedLoadout[key]) {
+      loadout.push(lockedLoadout[key]);
+    } else {
+      const sourcePool = type === 'armor' ? getArmorSelectionPool() : DB[pool];
+      const chosen = pickScored(sourcePool, type, new Set());
+      loadout.push({ slot, type, stratagem: chosen });
+    }
+  }
+
+  let booster;
+  if (lockedBooster && currentBooster) {
+    booster = currentBooster;
+  } else {
+    booster = { slot:'Booster', type:'booster', stratagem: pickScored(getBoosterPool(), 'booster', new Set()) };
+  }
+
+  const hasCloser = build.some(s => s.stratagem && s.stratagem.closer) || loadout.some(l => l.stratagem && l.stratagem.closer);
+  if (!hasCloser && !lockedLoadout[2]) {
+    const closerOnly = DB.grenade.filter(g => g.closer);
+    if (closerOnly.length) loadout[2] = { slot:'Grenade', type:'grenade', stratagem: pickScored(closerOnly, 'grenade', new Set()) };
+  }
+
+  return { build, loadout, booster };
+}
+
+// ═══════════════════════════════════════════════
+//  RANDOMIZE
+// ═══════════════════════════════════════════════
+
+function randomize() {
+  const warningEl = document.getElementById('warning');
+  warningEl.classList.remove('show');
+
+  let candidate = null;
+  for (let attempt = 0; attempt < 60; attempt++) {
+    const next = generateBuildOnce();
+    if (buildSatisfiesRules(next.build, next.loadout, next.booster)) {
+      candidate = next;
+      break;
+    }
+    candidate = next;
+  }
+
+  currentBuild = candidate.build;
+  currentLoadout = candidate.loadout;
+  currentBooster = candidate.booster;
+
+  if (!buildSatisfiesRules(currentBuild, currentLoadout, currentBooster)) {
+    warningEl.textContent = 'Best-effort build generated. Current filters and arsenal restrictions could not fully satisfy all selected role/theme rules.';
+    warningEl.classList.add('show');
+  }
+
+  render(currentBuild);
+  renderLoadout(currentLoadout);
+  renderBooster(currentBooster);
+  updateCloserWarning();
+  renderDebugInfo();
+}
+
+// ═══════════════════════════════════════════════
+//  RE-ROLL SINGLE SLOT
+// ═══════════════════════════════════════════════
+
+function rerollSlot(idx) {
+  if (lockedSlots[idx] || !currentBuild.length) return;
+
+  const savedLockedSlots = { ...lockedSlots };
+  const savedLockedLoadout = { ...lockedLoadout };
+  const savedLockedBooster = lockedBooster;
+
+  lockedSlots = {};
+  currentBuild.forEach((entry, i) => { if (i !== idx) lockedSlots[i] = entry; });
+  lockedLoadout = {};
+  currentLoadout.forEach((entry, i) => { lockedLoadout[i] = entry; });
+  lockedBooster = true;
+
+  randomize();
+
+  lockedSlots = savedLockedSlots;
+  lockedLoadout = savedLockedLoadout;
+  lockedBooster = savedLockedBooster;
+
+  render(currentBuild);
+  renderLoadout(currentLoadout);
+  renderBooster(currentBooster);
+  updateCloserWarning();
+  renderDebugInfo();
+}
+
+function rerollLoadout(idx) {
+  if (lockedLoadout[idx] || !currentLoadout.length) return;
+
+  const savedLockedSlots = { ...lockedSlots };
+  const savedLockedLoadout = { ...lockedLoadout };
+  const savedLockedBooster = lockedBooster;
+
+  lockedSlots = {};
+  currentBuild.forEach((entry, i) => { lockedSlots[i] = entry; });
+  lockedLoadout = {};
+  currentLoadout.forEach((entry, i) => { if (i !== idx) lockedLoadout[i] = entry; });
+  lockedBooster = true;
+
+  randomize();
+
+  lockedSlots = savedLockedSlots;
+  lockedLoadout = savedLockedLoadout;
+  lockedBooster = savedLockedBooster;
+
+  render(currentBuild);
+  renderLoadout(currentLoadout);
+  renderBooster(currentBooster);
+  updateCloserWarning();
+  renderDebugInfo();
+}
+
+function rerollBooster() {
+  if (lockedBooster || !currentBooster) return;
+
+  const savedLockedSlots = { ...lockedSlots };
+  const savedLockedLoadout = { ...lockedLoadout };
+  const savedLockedBooster = lockedBooster;
+
+  lockedSlots = {};
+  currentBuild.forEach((entry, i) => { lockedSlots[i] = entry; });
+  lockedLoadout = {};
+  currentLoadout.forEach((entry, i) => { lockedLoadout[i] = entry; });
+  lockedBooster = false;
+
+  randomize();
+
+  lockedSlots = savedLockedSlots;
+  lockedLoadout = savedLockedLoadout;
+  lockedBooster = savedLockedBooster;
+
+  render(currentBuild);
+  renderLoadout(currentLoadout);
+  renderBooster(currentBooster);
+  updateCloserWarning();
+  renderDebugInfo();
+}
+
+function toggleLock(idx) {
+  if (lockedSlots[idx]) delete lockedSlots[idx];
+  else lockedSlots[idx] = currentBuild[idx];
+  render(currentBuild);
+}
+
+function toggleLoadoutLock(idx) {
+  if (lockedLoadout[idx]) delete lockedLoadout[idx];
+  else lockedLoadout[idx] = currentLoadout[idx];
+  renderLoadout(currentLoadout);
+}
+
+function toggleBoosterLock() {
+  lockedBooster = !lockedBooster;
+  renderBooster(currentBooster);
+}
+
+// ═══════════════════════════════════════════════
+//  CLOSER WARNING
+// ═══════════════════════════════════════════════
+
+function updateCloserWarning() {
+  const el = document.getElementById('warning');
+  const has = currentBuild.some(s => s.stratagem && s.stratagem.closer) ||
+              currentLoadout.some(l => l.stratagem && l.stratagem.closer);
+  if (!has) {
+    el.textContent = '⚠ No objective closer in this build — you have no reliable way to close bug holes, fabricators, or ships.';
+    el.classList.add('show');
+  } else if (!el.textContent.startsWith('Best-effort')) {
+    el.classList.remove('show');
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════════
+
+const TYPE_LABELS = {
+  support:'Stratagem', backpack:'Stratagem', vehicle:'Stratagem', orbital:'Stratagem', eagle:'Stratagem', sentry:'Stratagem',
+  primary:'Primary', secondary:'Sidearm', grenade:'Grenade', armor:'Armor', booster:'Booster',
+};
+const TAG_LABELS = {
+  at:'Anti-Tank',
+  denial:'Crowd Control',
+  chaff:'Chaff',
+  close:'Close Combat',
+  support:'Support',
+  stealth:'Stealth',
+  mobility:'Mobility',
+  ballistic:'Ballistic',
+  explosive:'Explosive',
+  laser:'Laser',
+  fire:'Fire',
+  arc:'Arc',
+  plasma:'Plasma',
+  gas:'Gas',
+  melee:'Melee',
+  defense:'Defense',
+  balanced:'Balanced',
+};
+const WEIGHT_COLOR = { Light:'#4ade80', Medium:'#f5c518', Heavy:'#ef4444' };
+
+function cardHtml(entry, idx, isLoadout) {
+  const s = entry.stratagem;
+  const isBooster = entry.type === 'booster';
+  const isStratagemCard = !isLoadout && !isBooster;
+  const displaySlot = isStratagemCard ? `Stratagem ${idx + 1}` : entry.slot;
+  const locked = isBooster ? !!lockedBooster : (isLoadout ? !!lockedLoadout[idx] : !!lockedSlots[idx]);
+  const isBuiltin = !!entry.builtin;
+  const rerollFn = isBooster ? `rerollBooster()` : (isLoadout ? `rerollLoadout(${idx})` : `rerollSlot(${idx})`);
+  const lockFn = isBooster ? `toggleBoosterLock()` : (isLoadout ? `toggleLoadoutLock(${idx})` : `toggleLock(${idx})`);
+
+  const tagHtml = (s.tags || []).map(t => `<span class="tag tag-${t}">${TAG_LABELS[t] ?? t}</span>`).join('');
+  const closerBadge = s.closer ? `<span class="tag tag-closer">✓ closes objectives</span>` : '';
+  const showBuildTags = !isBooster;
+  const metaHtml = s.weight ? `<div class="card-meta"><span style="color:${WEIGHT_COLOR[s.weight]};font-weight:700">${s.weight}</span><span>${s.passive}</span></div>` : '';
+  const armorMatches = '';
+  const displayName = s.name;
+
+  return `
+    <div class="card${locked ? ' locked' : ''}">
+      <div class="card-slot">${displaySlot}</div>
+      ${metaHtml}
+      <div class="card-name">${displayName}</div>
+      <div class="card-desc">${s.desc}</div>
+      ${armorMatches}
+      ${(showBuildTags && (tagHtml || closerBadge)) ? `<div class="card-tags">${tagHtml}${closerBadge}</div>` : ''}
+      ${!isBuiltin ? `
+      <div class="card-actions">
+        <button class="btn-reroll" onclick="${rerollFn}" ${locked ? 'disabled style="opacity:.35;cursor:not-allowed"' : ''}>⟳ Re-roll</button>
+        <button class="btn-lock ${locked ? 'locked' : ''}" onclick="${lockFn}">${locked ? '🔒 Locked' : '🔓 Lock'}</button>
+      </div>` : ''}
+    </div>`;
+}
+
+function render(build) {
+  document.getElementById('results').innerHTML = build.map((e, i) => cardHtml(e, i, false)).join('');
+}
+
+function renderLoadout(loadout) {
+  document.getElementById('loadout').innerHTML = loadout.map((e, i) => cardHtml(e, i, true)).join('');
+}
+
+function renderBooster(booster) {
+  document.getElementById('booster').innerHTML = booster ? cardHtml(booster, 0, false) : '<div class="empty-state" style="grid-column:1/-1">Hit Randomize to generate a booster.</div>';
+}
+
+// ═══════════════════════════════════════════════
+//  ARSENAL MANAGER
+// ═══════════════════════════════════════════════
+
+// Item source map — anything not listed defaults to 'base' (stratagem / requisition slip)
+const ITEM_SRC = {
+  // ── Primary ────────────────────────────────
+  'AR-23 Liberator':                   'warbond:Helldivers Mobilize!',
+  'AR-23P Liberator Penetrator':       'warbond:Helldivers Mobilize!',
+  'AR-23C Liberator Concussive':       'warbond:Steeled Veterans',
+  'AR-23A Liberator Carbine':          'warbond:Viper Commandos',
+  'AR-61 Tenderizer':                  'warbond:Polar Patriots',
+  'AR-32 Pacifier':                    'warbond:Force of Law',
+  'AR-59 Suppressor':                  'warbond:Redacted Regiment',
+  'AR/GL-21 One-Two':                  'warbond:Python Commandos',
+  'AR-2 Coyote':                       'warbond:Dust Devils',
+  'MA5C Assault Rifle':                'warbond:Obedient Democracy Support Troopers',
+  'StA-52 Assault Rifle':              'warbond:Righteous Revenants',
+  'StA-11 SMG':                        'warbond:Righteous Revenants',
+  'BR-14 Adjudicator':                 'warbond:Democratic Detonation',
+  'JAR-5 Dominator':                   'warbond:Steeled Veterans',
+  'SG-225 Breaker':                    'warbond:Helldivers Mobilize!',
+  'SG-225SP Breaker Spray & Pray':     'warbond:Helldivers Mobilize!',
+  'SG-225IE Breaker Incendiary':       'warbond:Steeled Veterans',
+  'SG-8 Punisher':                     'warbond:Helldivers Mobilize!',
+  'SG-8P Punisher Plasma':             'warbond:Cutting Edge',
+  'SG-8S Slugger':                     'warbond:Helldivers Mobilize!',
+  'SG-20 Halt':                        'warbond:Truth Enforcers',
+  'SG-451 Cookout':                    "warbond:Freedom's Flame",
+  'MP-98 Knight':                      'base',
+  'SMG-37 Defender':                   'warbond:Helldivers Mobilize!',
+  'SMG-32 Reprimand':                  'warbond:Truth Enforcers',
+  'SMG-72 Pummeler':                   'warbond:Polar Patriots',
+  'SMG/FLAM-34 Stoker':                'warbond:Entrenched Division',
+  'M7S SMG':                           'warbond:Obedient Democracy Support Troopers',
+  'R-2 Amendment':                     'warbond:Masters of Ceremony',
+  'R-6 Deadeye':                       'warbond:Borderline Justice',
+  'R-63 Diligence':                    'warbond:Helldivers Mobilize!',
+  'R-63CS Diligence Counter Sniper':   'warbond:Helldivers Mobilize!',
+  'R-72 Censor':                       'warbond:Redacted Regiment',
+  'LAS-5 Scythe':                      'warbond:Helldivers Mobilize!',
+  'LAS-16 Sickle':                     'warbond:Cutting Edge',
+  'LAS-17 Double-Edge Sickle':         'warbond:Servants of Freedom',
+  'LAS-13 Trident':                    'warbond:Siege Breakers',
+  'PLAS-1 Scorcher':                   'warbond:Helldivers Mobilize!',
+  'PLAS-101 Purifier':                 'warbond:Polar Patriots',
+  'PLAS-39 Accelerator Rifle':         'warbond:Righteous Revenants',
+  'CB-9 Exploding Crossbow':           'warbond:Democratic Detonation',
+  'R-36 Eruptor':                      'warbond:Democratic Detonation',
+  'ARC-12 Blitzer':                    'warbond:Cutting Edge',
+  'FLAM-66 Torcher':                   "warbond:Freedom's Flame",
+  'VG-70 Variable':                    'warbond:Control Group',
+  'R-2124 Constitution':               'base',
+  'DBS-2 Double Freedom':              'base',
+  'M90A Shotgun':                      'warbond:Obedient Democracy Support Troopers',
+  // ── Secondary ──────────────────────────────
+  'P-2 Peacemaker':                    'warbond:Helldivers Mobilize!',
+  'P-4 Senator':                       'warbond:Steeled Veterans',
+  'P-11 Stim Pistol':                  'warbond:Chemical Agents',
+  'P-19 Redeemer':                     'warbond:Helldivers Mobilize!',
+  'P-35 Re-Educator':                  'warbond:Redacted Regiment',
+  'P-69 Veto':                         'warbond:Entrenched Division',
+  'P-72 Crisper':                      "warbond:Freedom's Flame",
+  'P-113 Verdict':                     'warbond:Polar Patriots',
+  'GP-31 Grenade Pistol':              'warbond:Democratic Detonation',
+  'GP-20 Ultimatum':                   'warbond:Servants of Freedom',
+  'SG-22 Bushwhacker':                 'warbond:Viper Commandos',
+  'LAS-7 Dagger':                      'warbond:Cutting Edge',
+  'LAS-58 Talon':                      'warbond:Borderline Justice',
+  'PLAS-15 Loyalist':                  'warbond:Truth Enforcers',
+  'M6C/SOCOM Pistol':                  'warbond:Obedient Democracy Support Troopers',
+  'CQC-19 Stun Lance':                 'warbond:Urban Legends',
+  'CQC-2 Saber':                       'warbond:Masters of Ceremony',
+  'CQC-73 Entrenchment Tool':          'warbond:Entrenched Division',
+  // ── Grenades ───────────────────────────────
+  'G-6 Frag':                          'warbond:Helldivers Mobilize!',
+  'G-12 High Explosive':               'warbond:Helldivers Mobilize!',
+  'G-16 Impact':                       'warbond:Helldivers Mobilize!',
+  'G-13 Incendiary Impact':            'warbond:Polar Patriots',
+  'G-10 Incendiary':                   'warbond:Steeled Veterans',
+  'G-123 Thermite':                    'warbond:Democratic Detonation',
+  'G-4 Gas':                           'warbond:Chemical Agents',
+  'G-3 Smoke':                         'warbond:Helldivers Mobilize!',
+  'G-23 Stun':                         'warbond:Cutting Edge',
+  'K-2 Throwing Knife':                'warbond:Viper Commandos',
+  'G-7 Pineapple':                     'warbond:Dust Devils',
+  'G-50 Seeker':                       'warbond:Servants of Freedom',
+  'G-142 Pyrotech':                    'warbond:Masters of Ceremony',
+  'G-109 Urchin':                      'warbond:Force of Law',
+  'G-31 Arc':                          'warbond:Control Group',
+  'TED-63 Dynamite':                   'warbond:Borderline Justice',
+  'TM-1 Lure Mine':                    'warbond:Redacted Regiment',
+  'G/SH-39 Shield':                    'warbond:Siege Breakers',
+  'G-48 Giga Grenade':                 'warbond:Entrenched Division',
+  // ── Boosters ───────────────────────────────
+  'Hellpod Space Optimization':        'base',
+  'Vitality Enhancement':              'base',
+  'Stamina Enhancement':               'base',
+  'Muscle Enhancement':                'base',
+  'Localization Confusion':            'base',
+  'UAV Recon Booster':                 'base',
+  'Expert Extraction Pilot':           'base',
+  'Experimental Infusion':             'base',
+  'Motivational Shocks':               'base',
+  'Firebomb Hellpods':                 'base',
+  'Flexible Reinforcement Budget':     'base',
+  // ── Armor ──────────────────────────────────
+  'Light / Engineering Kit':           'warbond:Helldivers Mobilize!',
+  'Light / Med-Kit':                   'warbond:Helldivers Mobilize!',
+  'Light / Scout':                     'warbond:Helldivers Mobilize!',
+  'Light / Peak Physique':             'warbond:Viper Commandos',
+  'Light / Servo-Assisted':            'warbond:Helldivers Mobilize!',
+  'Light / Inflammable':               "warbond:Freedom's Flame",
+  'Light / Electrical Conduit':        'warbond:Cutting Edge',
+  'Light / Advanced Filtration':       'warbond:Chemical Agents',
+  'Light / Unflinching':               'warbond:Truth Enforcers',
+  'Light / Reinforced Epaulettes':     'warbond:Masters of Ceremony',
+  'Light / Ballistic Padding':         'warbond:Force of Law',
+  'Light / Rock Solid':                'warbond:Python Commandos',
+  'Light / Reduced Signature':         'warbond:Redacted Regiment',
+  'Light / Concussive Padding':        'warbond:Entrenched Division',
+  'Medium / Extra Padding':            'warbond:Helldivers Mobilize!',
+  'Medium / Engineering Kit':          'warbond:Helldivers Mobilize!',
+  'Medium / Democracy Protects':       'warbond:Helldivers Mobilize!',
+  'Medium / Fortified':                'warbond:Steeled Veterans',
+  'Medium / Servo-Assisted':           'warbond:Helldivers Mobilize!',
+  'Medium / Siege-Ready':              'superstore',
+  'Medium / Acclimated':               'warbond:Righteous Revenants',
+  'Medium / Inflammable':              "warbond:Freedom's Flame",
+  'Medium / Electrical Conduit':       'warbond:Cutting Edge',
+  'Medium / Advanced Filtration':      'warbond:Chemical Agents',
+  'Medium / Unflinching':              'warbond:Truth Enforcers',
+  'Medium / Integrated Explosives':    'warbond:Servants of Freedom',
+  'Medium / Gunslinger':               'warbond:Borderline Justice',
+  'Medium / Reinforced Epaulettes':    'warbond:Masters of Ceremony',
+  'Medium / Ballistic Padding':        'warbond:Force of Law',
+  'Medium / Adreno-Defibrillator':     'warbond:Control Group',
+  'Medium / Desert Stormer':           'warbond:Dust Devils',
+  'Medium / Reduced Signature':        'warbond:Redacted Regiment',
+  'Medium / Concussive Padding':       'warbond:Entrenched Division',
+  'Medium / Feet First':               'warbond:Obedient Democracy Support Troopers',
+  'Medium / Supplementary Adrenaline': 'warbond:Siege Breakers',
+  'Heavy / Extra Padding':             'warbond:Helldivers Mobilize!',
+  'Heavy / Fortified':                 'warbond:Steeled Veterans',
+  'Heavy / Democracy Protects':        'warbond:Helldivers Mobilize!',
+  'Heavy / Engineering Kit':           'warbond:Helldivers Mobilize!',
+  'Heavy / Servo-Assisted':            'warbond:Steeled Veterans',
+  'Heavy / Inflammable':               "warbond:Freedom's Flame",
+  'Heavy / Electrical Conduit':        'superstore',
+  'Heavy / Peak Physique':             'warbond:Viper Commandos',
+  'Heavy / Siege-Ready':               'warbond:Urban Legends',
+  'Heavy / Gunslinger':                'warbond:Borderline Justice',
+  'Heavy / Adreno-Defibrillator':      'warbond:Control Group',
+  'Heavy / Desert Stormer':            'warbond:Dust Devils',
+  'Heavy / Rock Solid':                'warbond:Python Commandos',
+  'Heavy / Supplementary Adrenaline':  'warbond:Siege Breakers',
+  // ── Support Weapons ────────────────────────
+  'MG-43 Machine Gun':                 'base',
+  'APW-1 Anti-Materiel Rifle':         'base',
+  'M-105 Stalwart':                    'base',
+  'EAT-17 Expendable AT':              'base',
+  'GR-8 Recoilless Rifle':             'base',
+  'FLAM-40 Flamethrower':              'base',
+  'AC-8 Autocannon':                   'base',
+  'GL-21 Grenade Launcher':            'base',
+  'MG-206 Heavy Machine Gun':          'base',
+  'RS-422 Railgun':                    'base',
+  'FAF-14 Spear':                      'base',
+  'LAS-98 Laser Cannon':               'base',
+  'ARC-3 Arc Thrower':                 'base',
+  'RL-77 Airburst Launcher':           'base',
+  'LAS-99 Quasar Cannon':              'base',
+  'MLS-4X Commando':                   'base',
+  'StA-X3 W.A.S.P. Launcher':         'base',
+  'TX-41 Sterilizer':                  'warbond:Chemical Agents',
+  'CQC-1 One True Flag':               'warbond:Masters of Ceremony',
+  'GL-52 De-Escalator':                'warbond:Force of Law',
+  'PLAS-45 Epoch':                     'warbond:Control Group',
+  'S-11 Speargun':                     'warbond:Dust Devils',
+  'EAT-700 Expendable Napalm':         'warbond:Dust Devils',
+  'MS-11 Solo Silo':                   'warbond:Dust Devils',
+  'M-1000 Maxigun':                    'warbond:Python Commandos',
+  'CQC-9 Defoliation Tool':            'warbond:Python Commandos',
+  'B/MD C4 Pack':                      'warbond:Redacted Regiment',
+  'CQC-20 Breaching Hammer':           'warbond:Siege Breakers',
+  'EAT-411 Leveller':                  'warbond:Siege Breakers',
+  'GL-28 Belt-Fed Grenade Launcher':   'warbond:Siege Breakers',
+  'B/FLAM-80 Cremator':                'warbond:Entrenched Division',
+  // ── Vehicles ──────────────────────────────
+  'EXO-45 Patriot Exosuit':            'base',
+  'EXO-49 Emancipator Exosuit':        'base',
+  'TD-220 Bastion Mk XVI':             'base',
+  'M-102 Fast Recon Vehicle':          'base',
+  // ── Backpacks ─────────────────────────────
+  'B-1 Supply Pack':                   'base',
+  'SH-32 Shield Generator Pack':       'base',
+  'LIFT-850 Jump Pack':                'base',
+  'SH-20 Ballistic Shield Backpack':   'base',
+  'AX/LAS-5 Rover':                    'base',
+  'AX/AR-23 Guard Dog':                'base',
+  'AX/TX-13 Dog Breath':               'warbond:Chemical Agents',
+  'SH-51 Directional Shield':          'warbond:Urban Legends',
+  'B-100 Portable Hellbomb':           'warbond:Servants of Freedom',
+  'AX/ARC-3 K-9':                      'warbond:Force of Law',
+  'LIFT-860 Hover Pack':               'warbond:Borderline Justice',
+  'AX/FLAM-75 Hot Dog':                'warbond:Python Commandos',
+  'LIFT-182 Warp Pack':                'warbond:Control Group',
+  // ── Orbital ───────────────────────────────
+  'Orbital Precision Strike':          'base',
+  'Orbital Gatling Barrage':           'base',
+  'Orbital Airburst Strike':           'base',
+  'Orbital 120mm HE Barrage':          'base',
+  'Orbital 380mm HE Barrage':          'base',
+  'Orbital Walking Barrage':           'base',
+  'Orbital Laser':                     'base',
+  'Orbital Railcannon Strike':         'base',
+  'Orbital EMS Strike':                'base',
+  'Orbital Smoke Strike':              'base',
+  'Orbital Gas Strike':                'base',
+  'Orbital Napalm Barrage':            'base',
+  // ── Eagle ─────────────────────────────────
+  'Eagle Strafing Run':                'base',
+  'Eagle Airstrike':                   'base',
+  'Eagle Cluster Bomb':                'base',
+  'Eagle Napalm Airstrike':            'base',
+  'Eagle Smoke Strike':                'base',
+  'Eagle 110mm Rocket Pods':           'base',
+  'Eagle 500kg Bomb':                  'base',
+  // ── Sentries & Emplacements ───────────────
+  'A/MG-43 Machine Gun Sentry':        'base',
+  'A/G-16 Gatling Sentry':             'base',
+  'A/M-12 Mortar Sentry':              'base',
+  'A/AC-8 Autocannon Sentry':          'base',
+  'A/MLS-4X Rocket Sentry':            'base',
+  'A/M-23 EMS Mortar Sentry':          'base',
+  'A/ARC-3 Tesla Tower':               'base',
+  'A/LAS-98 Laser Sentry':             'warbond:Control Group',
+  'A/FLAM-40 Flame Sentry':            'warbond:Urban Legends',
+  'A/GM-17 Gas Mortar Sentry':         'warbond:Entrenched Division',
+  'MD-6 Anti-Personnel Minefield':     'base',
+  'MD-17 Anti-Tank Mines':             'base',
+  'MD-I4 Incendiary Mines':            'base',
+  'MD-8 Gas Mines':                    'superstore',
+  'E/MG-101 HMG Emplacement':          'base',
+  'E/GL-21 Grenadier Battlement':      'superstore',
+  'E/AT-12 Anti-Tank Emplacement':     'warbond:Urban Legends',
+  'FX-12 Shield Generator Relay':      'base',
+};
+
+Object.assign(ITEM_SRC, {
+  'CE-07 Demolition Specialist':            'warbond:Helldivers Mobilize!',
+  'CM-21 Trench Paramedic':                 'superstore',
+  'SC-30 Trailblazer Scout':                'warbond:Helldivers Mobilize!',
+  'PH-9 Predator':                          'warbond:Viper Commandos',
+  'SC-37 Legionnaire':                      'superstore',
+  'I-09 Heatseeker':                        "warbond:Freedom's Flame",
+  'EX-00 Prototype X':                      'warbond:Cutting Edge',
+  'AF-50 Noxious Ranger':                   'warbond:Chemical Agents',
+  'UF-16 Inspector':                        'warbond:Truth Enforcers',
+  'RE-1861 Parade Commander':               'warbond:Masters of Ceremony',
+  'BP-32 Jackboot':                         'warbond:Force of Law',
+  'RS-20 Constrictor':                      'warbond:Python Commandos',
+  'RS-89 Shadow Paragon':                   'warbond:Redacted Regiment',
+  'CPH-26 Commandant':                      'warbond:Entrenched Division',
+  'AC-2 Obedient':                          'warbond:Righteous Revenants',
+  'GS-11 Democracy\'s Deputy':             'superstore',
+  'B-01 Tactical':                          'base',
+  'CE-27 Ground Breaker':                   'warbond:Helldivers Mobilize!',
+  'CM-09 Bonesnapper':                      'warbond:Helldivers Mobilize!',
+  'DP-11 Champion of the People':           'warbond:Helldivers Mobilize!',
+  'FS-34 Exterminator':                     'superstore',
+  'SA-25 Steel Trooper':                    'warbond:Steeled Veterans',
+  'SR-24 Street Scout':                     'warbond:Urban Legends',
+  'AC-1 Dutiful':                           'warbond:Righteous Revenants',
+  'I-92 Fire Fighter':                      'superstore',
+  'EX-03 Prototype 3':                      'warbond:Cutting Edge',
+  'AF-02 Haz-Master':                       'warbond:Chemical Agents',
+  'UF-50 Bloodhound':                       'warbond:Truth Enforcers',
+  'IE-12 Righteous':                        'warbond:Servants of Freedom',
+  'GS-17 Frontier Marshal':                 'warbond:Borderline Justice',
+  'RE-2310 Honorary Guard':                 'warbond:Masters of Ceremony',
+  'BP-20 Correct Officer':                  'warbond:Force of Law',
+  'AD-26 Bleeding Edge':                    'warbond:Control Group',
+  'DS-191 Scorpion':                        'warbond:Dust Devils',
+  'RS-67 Null Cipher':                      'warbond:Redacted Regiment',
+  'CPG-48 Sapper':                          'warbond:Entrenched Division',
+  'A-9 Helljumper':                         'superstore',
+  'SA-7 Headfirst':                         'warbond:Siege Breakers',
+  'B-27 Fortified Commando':                'superstore',
+  'FS-55 Devastator':                       'warbond:Steeled Veterans',
+  'CE-64 Grenadier':                        'warbond:Helldivers Mobilize!',
+  'CM-17 Butcher':                          'superstore',
+  'SA-32 Dynamo':                           'warbond:Steeled Veterans',
+  'I-44 Salamander':                        'superstore',
+  'PH-202 Twigsnapper':                     'warbond:Viper Commandos',
+  'SR-18 Roadblock':                        'warbond:Urban Legends',
+  'GS-66 Lawmaker':                         'warbond:Borderline Justice',
+  'AD-49 Apollonian':                       'warbond:Control Group',
+  'DS-42 Federation\'s Blade':             'warbond:Dust Devils',
+  'RS-40 Beast of Prey':                    'warbond:Python Commandos',
+  'SA-8 Ram':                               'warbond:Siege Breakers',
+  'RE-824 Bearer of the Standard':          'superstore',
+  'BP-77 Grand Juror':                      'warbond:Force of Law',
+  'AF-52 Lockdown':                         'superstore',
+  'CPR-80 Bulwark':                         'superstore',
+});
+
+// Warbond page each item appears on (1–3). Unlisted items default to page 1.
+const ITEM_PAGE = {
+  // ── Helldivers Mobilize! ──────────────────
+  'SG-8 Punisher':1,       'G-6 Frag':1,
+  'R-63 Diligence':2,      'P-19 Redeemer':2,
+  'SMG-37 Defender':3,
+  // ── Steeled Veterans ─────────────────────
+  'AR-23C Liberator Concussive':1, 'P-4 Senator':1,
+  'SG-225IE Breaker Incendiary':2, 'G-10 Incendiary':2,
+  'JAR-5 Dominator':3,
+  // ── Cutting Edge ─────────────────────────
+  'LAS-16 Sickle':1,
+  'SG-8P Punisher Plasma':2, 'G-23 Stun':2,
+  'LAS-7 Dagger':3, 'ARC-12 Blitzer':3,
+  // ── Democratic Detonation ────────────────
+  'BR-14 Adjudicator':1, 'G-123 Thermite':1,
+  'R-36 Eruptor':2,
+  'CB-9 Exploding Crossbow':3, 'GP-31 Grenade Pistol':3,
+  // ── Polar Patriots ───────────────────────
+  'AR-61 Tenderizer':1,
+  'SMG-72 Pummeler':2, 'G-13 Incendiary Impact':2,
+  'PLAS-101 Purifier':3, 'P-113 Verdict':3,
+  // ── Viper Commandos ──────────────────────
+  'AR-23A Liberator Carbine':1,
+  'SG-22 Bushwhacker':2,
+  'K-2 Throwing Knife':3,
+  // ── Freedom\'s Flame ─────────────────────
+  'SG-451 Cookout':1,
+  'FLAM-66 Torcher':2,
+  'P-72 Crisper':3,
+  // ── Chemical Agents ──────────────────────
+  'G-4 Gas':1,
+  'TX-41 Sterilizer':2,
+  'P-11 Stim Pistol':3, 'AX/TX-13 Dog Breath':3,
+  // ── Truth Enforcers ──────────────────────
+  'SG-20 Halt':1,
+  'SMG-32 Reprimand':2,
+  'PLAS-15 Loyalist':3,
+  // ── Urban Legends ────────────────────────
+  'CQC-19 Stun Lance':1, 'SH-51 Directional Shield':1,
+  'A/FLAM-40 Flame Sentry':2,
+  'E/AT-12 Anti-Tank Emplacement':3,
+  // ── Servants of Freedom ──────────────────
+  'LAS-17 Double-Edge Sickle':1,
+  'GP-20 Ultimatum':2,
+  'G-50 Seeker':3, 'B-100 Portable Hellbomb':3,
+  // ── Borderline Justice ───────────────────
+  'R-6 Deadeye':1,
+  'LAS-58 Talon':2,
+  'TED-63 Dynamite':3, 'LIFT-860 Hover Pack':3,
+  // ── Masters of Ceremony ──────────────────
+  'R-2 Amendment':1,
+  'CQC-2 Saber':2,
+  'CQC-1 One True Flag':3, 'G-142 Pyrotech':3,
+  // ── Force of Law ─────────────────────────
+  'AR-32 Pacifier':1,
+  'GL-52 De-Escalator':2,
+  'AX/ARC-3 K-9':3, 'G-109 Urchin':3,
+  // ── Control Group ────────────────────────
+  'PLAS-45 Epoch':1, 'VG-70 Variable':1,
+  'A/LAS-98 Laser Sentry':2,
+  'LIFT-182 Warp Pack':3, 'G-31 Arc':3,
+  // ── Dust Devils ──────────────────────────
+  'AR-2 Coyote':1,
+  'S-11 Speargun':2, 'EAT-700 Expendable Napalm':2,
+  'MS-11 Solo Silo':3, 'G-7 Pineapple':3,
+  // ── Python Commandos ─────────────────────
+  'AR/GL-21 One-Two':1, 'AX/FLAM-75 Hot Dog':1,
+  'CQC-9 Defoliation Tool':2,
+  'M-1000 Maxigun':3,
+  // ── Redacted Regiment ────────────────────
+  'R-72 Censor':1, 'P-35 Re-Educator':1,
+  'AR-59 Suppressor':2,
+  'B/MD C4 Pack':3, 'TM-1 Lure Mine':3,
+  // ── Siege Breakers ───────────────────────
+  'LAS-13 Trident':1, 'CQC-20 Breaching Hammer':1,
+  'EAT-411 Leveller':2,
+  'GL-28 Belt-Fed Grenade Launcher':3, 'G/SH-39 Shield':3,
+  // ── Entrenched Division ──────────────────
+  'SMG/FLAM-34 Stoker':1, 'CQC-73 Entrenchment Tool':1,
+  'G-48 Giga Grenade':2, 'A/GM-17 Gas Mortar Sentry':2,
+  'B/FLAM-80 Cremator':3, 'P-69 Veto':3,
+  // ── Obedient Democracy Support Troopers ──
+  'MA5C Assault Rifle':1,
+  'M7S SMG':2,
+  'M90A Shotgun':3, 'M6C/SOCOM Pistol':3,
+  // ── Righteous Revenants ──────────────────
+  'StA-52 Assault Rifle':1,
+  'PLAS-39 Accelerator Rifle':2,
+  'StA-11 SMG':3,
+};
+
+Object.assign(ITEM_PAGE, {
+  'CE-07 Demolition Specialist': 1,
+  'SC-30 Trailblazer Scout': 1,
+  'PH-9 Predator': 1,
+  'I-09 Heatseeker': 1,
+  'EX-00 Prototype X': 3,
+  'AF-50 Noxious Ranger': 1,
+  'UF-16 Inspector': 3,
+  'RE-1861 Parade Commander': 2,
+  'BP-32 Jackboot': 1,
+  'RS-20 Constrictor': 1,
+  'RS-89 Shadow Paragon': 2,
+  'CPH-26 Commandant': 2,
+  'AC-2 Obedient': 2,
+  'GS-11 Democracy\'s Deputy': 1,
+  'CE-27 Ground Breaker': 1,
+  'CM-09 Bonesnapper': 4,
+  'DP-11 Champion of the People': 10,
+  'SA-25 Steel Trooper': 1,
+  'SR-24 Street Scout': 1,
+  'AC-1 Dutiful': 1,
+  'EX-03 Prototype 3': 1,
+  'AF-02 Haz-Master': 2,
+  'UF-50 Bloodhound': 2,
+  'IE-12 Righteous': 2,
+  'GS-17 Frontier Marshal': 1,
+  'RE-2310 Honorary Guard': 1,
+  'BP-20 Correct Officer': 2,
+  'AD-26 Bleeding Edge': 1,
+  'DS-191 Scorpion': 2,
+  'RS-67 Null Cipher': 1,
+  'CPG-48 Sapper': 2,
+  'A-9 Helljumper': 1,
+  'SA-7 Headfirst': 1,
+  'FS-55 Devastator': 1,
+  'CE-64 Grenadier': 1,
+  'SA-32 Dynamo': 3,
+  'PH-202 Twigsnapper': 2,
+  'SR-18 Roadblock': 2,
+  'GS-66 Lawmaker': 2,
+  'AD-49 Apollonian': 2,
+  'DS-42 Federation\'s Blade': 3,
+  'RS-40 Beast of Prey': 3,
+  'SA-8 Ram': 2,
+  'BP-77 Grand Juror': 3,
+  'CPR-80 Bulwark': 3,
+});
+
+let disabledItems = new Set(JSON.parse(localStorage.getItem('hd2_disabled') || '[]'));
+
+function saveDisabled() {
+  localStorage.setItem('hd2_disabled', JSON.stringify([...disabledItems]));
+}
+function isEnabled(s) { return !disabledItems.has(s.name); }
+
+function toggleItem(name) {
+  if (disabledItems.has(name)) disabledItems.delete(name);
+  else disabledItems.add(name);
+  saveDisabled();
+  renderArsenal();
+}
+
+function arsenalEnableAll(namesJson) {
+  JSON.parse(namesJson).forEach(n => disabledItems.delete(n));
+  saveDisabled(); renderArsenal();
+}
+function arsenalDisableAll(namesJson) {
+  JSON.parse(namesJson).forEach(n => disabledItems.add(n));
+  saveDisabled(); renderArsenal();
+}
+
+function toggleArsenal() {
+  const btn   = document.getElementById('arsenalBtn');
+  const panel = document.getElementById('arsenalPanel');
+  const open  = panel.classList.toggle('open');
+  btn.classList.toggle('open', open);
+  btn.textContent = open ? '✕ Close Arsenal' : '⚙ Manage Arsenal';
+  if (open) renderArsenal();
+}
+
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function formatArsenalItemName(item, typeName) {
+  return typeName === 'Armor' ? getArmorDisplayName(item) : item.name;
+}
+
+function formatArsenalItemMeta(item, typeName) {
+  if (typeName === 'Armor') {
+    const weight = item.weight ? String(item.weight).toLowerCase() : '';
+    const passive = item.passive || '';
+    return [weight, passive].filter(Boolean).join(', ');
+  }
+  return '';
+}
+
+function formatArsenalItemTags(item) {
+  if (!item.tags || !item.tags.length) return '<span class="ars-item-meta">untagged</span>';
+  return item.tags.map(t => `<span class="ars-tag tag-${t}">${escapeHtml(TAG_LABELS[t] ?? t)}</span>`).join('');
+}
+
+function renderArsenal() {
+  const panel = document.getElementById('arsenalPanel');
+  if (!panel.classList.contains('open')) return;
+
+  const WARBOND_ORDER = [
+    'Helldivers Mobilize!','Steeled Veterans','Cutting Edge',
+    'Democratic Detonation','Polar Patriots','Viper Commandos',
+    "Freedom's Flame",'Chemical Agents','Truth Enforcers',
+    'Urban Legends','Servants of Freedom','Borderline Justice',
+    'Masters of Ceremony','Force of Law','Control Group',
+    'Dust Devils','Python Commandos','Redacted Regiment',
+    'Siege Breakers','Entrenched Division',
+    'Obedient Democracy Support Troopers','Righteous Revenants',
+  ];
+
+  const TYPE_ORDER = [
+    'Primary Weapons','Secondary Weapons','Grenades','Armor','Boosters',
+    'Support Weapons','Backpacks','Vehicles','Orbitals','Air Support','Sentry Turrets','Mines','Emplacements',
+  ];
+  const allTypes = [
+    { name:'Primary Weapons',          db:DB.primary   },
+    { name:'Secondary Weapons',        db:DB.secondary },
+    { name:'Grenades',                 db:DB.grenade   },
+    { name:'Armor',                    db:DB.armor     },
+    { name:'Boosters',                 db:DB.booster   },
+    { name:'Support Weapons',          db:DB.support   },
+    { name:'Backpacks',                db:DB.backpack  },
+    { name:'Vehicles',                 db:DB.vehicle   },
+    { name:'Orbitals',                 db:DB.orbital   },
+    { name:'Air Support',              db:DB.eagle     },
+    { name:'Sentry Turrets',           db:DB.sentry.filter(s => sentryBucket(s) === 'turrets') },
+    { name:'Mines',                    db:DB.sentry.filter(s => sentryBucket(s) === 'mines') },
+    { name:'Emplacements',             db:DB.sentry.filter(s => sentryBucket(s) === 'emplacements') },
+  ];
+
+  // byWarbond[src][page][typeName] = [items]
+  const byWarbond = {};
+  for (const { name: typeName, db } of allTypes) {
+    for (const item of db) {
+      const src  = ITEM_SRC[item.name] || 'base';
+      const page = ITEM_PAGE[item.name] || 1;
+      (byWarbond[src]                   = byWarbond[src]        || {});
+      (byWarbond[src][page]             = byWarbond[src][page]  || {});
+      (byWarbond[src][page][typeName]   = byWarbond[src][page][typeName] || []).push(item);
+    }
+  }
+
+  const wbRank = s => {
+    if (s === 'base') return 0;
+    if (s === 'superstore') return 9999;
+    const i = WARBOND_ORDER.indexOf(s.replace('warbond:', ''));
+    return i >= 0 ? i + 1 : 1000;
+  };
+  const srcs = Object.keys(byWarbond).sort((a, b) => wbRank(a) - wbRank(b));
+
+  let html = '';
+  for (const src of srcs) {
+    const isUtility  = src === 'base' || src === 'superstore';
+    const warbondName = src === 'base'       ? 'Base Game'
+                      : src === 'superstore' ? 'Superstore'
+                      : src.replace('warbond:', '');
+
+    const allItems = [];
+    for (const pg of Object.values(byWarbond[src]))
+      for (const arr of Object.values(pg)) allItems.push(...arr);
+    const allJson = JSON.stringify(allItems.map(i => i.name)).replace(/"/g, '&quot;');
+
+    html += `<div class="ars-warbond">`;
+    html += `<div class="ars-warbond-header${isUtility ? ' utility' : ''}">`;
+    html += `<span class="ars-warbond-name">${warbondName}</span>`;
+    html += `<button class="ars-bulk-btn" onclick="arsenalEnableAll('${allJson}')">Enable All</button>`;
+    html += `<button class="ars-bulk-btn" onclick="arsenalDisableAll('${allJson}')">Disable All</button>`;
+    html += `</div>`;
+
+    const pages = Object.keys(byWarbond[src]).map(Number).sort();
+    const showPageLabels = !isUtility && pages.length > 1;
+
+    for (const page of pages) {
+      html += `<div class="ars-page">`;
+      if (showPageLabels) html += `<div class="ars-page-label">Page ${page}</div>`;
+      for (const typeName of TYPE_ORDER) {
+        const items = byWarbond[src][page][typeName];
+        if (!items) continue;
+        html += `<div class="ars-cat"><div class="ars-cat-name">${typeName}</div><div class="ars-items">`;
+        for (const item of items) {
+          const off      = disabledItems.has(item.name);
+          const safeName = item.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+          const displayName = escapeHtml(formatArsenalItemName(item, typeName));
+          const displayMeta = escapeHtml(formatArsenalItemMeta(item, typeName));
+          const displayTags = formatArsenalItemTags(item);
+          html += `<div class="ars-item${off ? ' off' : ''}" onclick="toggleItem('${safeName}')"><div class="ars-tog"></div><div class="ars-item-text"><div class="ars-item-name">${displayName}</div>${displayMeta ? `<div class="ars-item-meta">${displayMeta}</div>` : ''}<div class="ars-item-tags">${displayTags}</div></div></div>`;
+        }
+        html += `</div></div>`;
+      }
+      html += `</div>`;
+    }
+    html += `</div>`;
+  }
+  panel.innerHTML = html;
+}
+renderDebugInfo();
+</script>
+</body>
+</html>
